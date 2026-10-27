@@ -1,0 +1,17 @@
+{
+  "61bd38f576a5" : {
+    "amount" : 20.99,
+    "linkedAt" : "2026-08-10T00:43:36Z",
+    "reimbursementHash" : "8a300e8d91e1"
+  },
+  "709741700442" : {
+    "amount" : 31,
+    "linkedAt" : "2026-08-10T00:41:43Z",
+    "reimbursementHash" : "1cca61dd4cdb"
+  },
+  "edaf1fc199c6" : {
+    "amount" : 14.99,
+    "linkedAt" : "2026-08-10T00:42:41Z",
+    "reimbursementHash" : "1f86d602fb7c"
+  }
+}

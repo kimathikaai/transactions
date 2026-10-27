@@ -1,0 +1,676 @@
+[
+  {
+    "color" : "#8dd3c7",
+    "displayName" : "Food",
+    "id" : "cat_4aaf9a1e-5185-4646-8650-2ed9686bbdbf",
+    "patterns" : [],
+    "symbol" : "fork.knife",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#8dd3c7",
+    "displayName" : "Groceries",
+    "id" : "cat_09fc5cfa-b6be-49ca-8381-51bdfe482a6c",
+    "parent" : "cat_4aaf9a1e-5185-4646-8650-2ed9686bbdbf",
+    "patterns" : [
+      "SOBEYS",
+      "FARM BOY",
+      "COSTCO",
+      "T&T SUPERMARKET",
+      "FOOD BASICS",
+      "LOBLAWS",
+      "INSTACART",
+      "FRESHCO",
+      "NO ?FRILLS",
+      "METRO ",
+      "BULK BARN",
+      "7 ELEVEN",
+      "WALMART",
+      "WAL.MART"
+    ],
+    "symbol" : "fork.knife",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#8dd3c7",
+    "displayName" : "Dining",
+    "id" : "cat_81bbc265-765b-4c11-a4a0-6a9d294ef139",
+    "parent" : "cat_4aaf9a1e-5185-4646-8650-2ed9686bbdbf",
+    "patterns" : [
+      "^MCDONALD",
+      "TIM HORTON",
+      "STARBUCKS",
+      "SUBWAY",
+      "BANH MI",
+      "A&W ",
+      "SHAWERMA",
+      "SHAWARMA",
+      "POPEYES CHICKEN",
+      "MARY BROWN",
+      "HARVEY",
+      "WENDY",
+      "BURGER KING",
+      "SWISS CHALET",
+      "CHIPOTLE",
+      "PITA PIT",
+      "OSMOW",
+      "NANDO",
+      "CORA ",
+      "BOSTON PIZZA",
+      "DOMINO",
+      "PIZZA PIZZA",
+      "SUSHI",
+      "RAMEN",
+      "PHO ",
+      "BURRITO",
+      "TACO",
+      "WONTON",
+      "CHICK-FIL-A",
+      "DAIRY QUEEN",
+      "BROWNS SOCIALHOUSE"
+    ],
+    "symbol" : "fork.knife",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#8dd3c7",
+    "displayName" : "Cafe",
+    "id" : "cat_77999627-077a-4aaf-8411-8d9914e42912",
+    "parent" : "cat_4aaf9a1e-5185-4646-8650-2ed9686bbdbf",
+    "patterns" : [
+      "SECOND CUP",
+      "CHATIME",
+      "COCO BUBBLE",
+      "GONG CHA",
+      "THE ALLEY"
+    ],
+    "symbol" : "fork.knife",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#8dd3c7",
+    "displayName" : "Convenience Store",
+    "id" : "cat_7c770b63-b731-47cd-a97a-2bd9ba55ddf4",
+    "parent" : "cat_4aaf9a1e-5185-4646-8650-2ed9686bbdbf",
+    "patterns" : [
+      "CIRCLE K",
+      "COUCHE.TARD",
+      "MAC.S CONVENIENCE",
+      "VENDING"
+    ],
+    "symbol" : "fork.knife",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#8dd3c7",
+    "displayName" : "Delivery",
+    "id" : "cat_bd8833f8-e1b3-4121-ab36-71b6e433f523",
+    "parent" : "cat_4aaf9a1e-5185-4646-8650-2ed9686bbdbf",
+    "patterns" : [
+      "UBER.*EATS",
+      "SKIP.*DISHES",
+      "DOORDASH"
+    ],
+    "symbol" : "fork.knife",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Transport",
+    "id" : "cat_50fbdf0a-c993-4aab-a811-57c3c6f50bae",
+    "patterns" : [],
+    "symbol" : "car.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Gas",
+    "id" : "cat_dbd5ecd6-8aaa-4c49-a4d4-5b312d67af03",
+    "parent" : "cat_50fbdf0a-c993-4aab-a811-57c3c6f50bae",
+    "patterns" : [
+      "PETRO.CANADA",
+      "SHELL",
+      "ESSO",
+      "PIONEER",
+      "PETROCAN",
+      "CDN TIRE GASBAR"
+    ],
+    "symbol" : "car.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Insurance",
+    "id" : "cat_284604e4-ab27-436f-8186-8d0831fcfa19",
+    "parent" : "cat_50fbdf0a-c993-4aab-a811-57c3c6f50bae",
+    "patterns" : [
+      "CAA INSURANCE"
+    ],
+    "symbol" : "car.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Rideshare",
+    "id" : "cat_66fb556a-ca78-4a2b-a89d-b599ae627c5b",
+    "parent" : "cat_50fbdf0a-c993-4aab-a811-57c3c6f50bae",
+    "patterns" : [
+      "UBER CANADA/UBER",
+      "UBER ?BV",
+      "UBER\\* TRIP",
+      "PRESTO",
+      "COMPASS ACCOUNT",
+      "LYFT"
+    ],
+    "symbol" : "car.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Parking",
+    "id" : "cat_9490f842-7cc3-4d07-bf00-31cbccbd5cf5",
+    "parent" : "cat_50fbdf0a-c993-4aab-a811-57c3c6f50bae",
+    "patterns" : [
+      "TORONTO PARKING",
+      "IMPARK"
+    ],
+    "symbol" : "car.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Bicycle",
+    "id" : "cat_0eae2c9c-ae38-42e1-8b53-598815b1d361",
+    "parent" : "cat_50fbdf0a-c993-4aab-a811-57c3c6f50bae",
+    "patterns" : [
+      "BIKE SHOP",
+      "CYCLERY"
+    ],
+    "symbol" : "car.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Travel",
+    "id" : "cat_51169bb9-ce58-4c28-b4a4-839b738e8179",
+    "parent" : "cat_50fbdf0a-c993-4aab-a811-57c3c6f50bae",
+    "patterns" : [
+      "AIRBNB",
+      "MARRIOTT",
+      "HAMPTON INN",
+      "AVIS RENT",
+      "AIR CAN",
+      "FLAIR AIRLINES",
+      "WESTJET"
+    ],
+    "symbol" : "car.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fb8072",
+    "displayName" : "Health",
+    "id" : "cat_72401265-ed3c-42d4-98cb-0352cfd02d73",
+    "patterns" : [],
+    "symbol" : "heart.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fb8072",
+    "displayName" : "Gym",
+    "id" : "cat_115c213a-2f5a-4e55-aaf0-552a9f078a2e",
+    "parent" : "cat_72401265-ed3c-42d4-98cb-0352cfd02d73",
+    "patterns" : [
+      "Fit4less",
+      "GoodLife",
+      "PLANET FITNESS"
+    ],
+    "symbol" : "heart.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fb8072",
+    "displayName" : "Hygiene",
+    "id" : "cat_b79f3ffc-c770-4525-ae87-32d7c9ff828e",
+    "parent" : "cat_72401265-ed3c-42d4-98cb-0352cfd02d73",
+    "patterns" : [
+      "SHOPPERS DRUG",
+      "BARBER",
+      "SALON"
+    ],
+    "symbol" : "heart.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fb8072",
+    "displayName" : "Supplements",
+    "id" : "cat_fbfa484c-b79a-4542-9558-3aea9e098165",
+    "parent" : "cat_72401265-ed3c-42d4-98cb-0352cfd02d73",
+    "patterns" : [
+      "POPEYES SUPPLEMENTS"
+    ],
+    "symbol" : "heart.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fb8072",
+    "displayName" : "Pharmacy",
+    "id" : "cat_4fa65beb-4559-4a94-9d6a-088f2b1b8c60",
+    "parent" : "cat_72401265-ed3c-42d4-98cb-0352cfd02d73",
+    "patterns" : [
+      "PHARMASAVE",
+      "REXALL"
+    ],
+    "symbol" : "heart.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#80b1d3",
+    "displayName" : "Entertainment",
+    "id" : "cat_9fd95f72-6820-4bb3-9ef3-cb61b4d28d15",
+    "patterns" : [],
+    "symbol" : "tv.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#80b1d3",
+    "displayName" : "Subscriptions",
+    "id" : "cat_56eb6f87-06a7-407a-8511-8f46a4c39c4f",
+    "parent" : "cat_9fd95f72-6820-4bb3-9ef3-cb61b4d28d15",
+    "patterns" : [
+      "NETFLIX",
+      "SPOTIFY",
+      "DISNEY PLUS",
+      "DISNEY\\+",
+      "AMAZON CHANNELS",
+      "PLAYSTATION",
+      "APPLE\\.COM/BILL",
+      "APPLE\\.COM/CA",
+      "CRUNCHYROLL",
+      "Amazon.ca Prime",
+      "APL.*ITUNES",
+      "SHONEN JUMP",
+      "SONY INTERACTIVE",
+      "PRIMEVIDEO"
+    ],
+    "symbol" : "tv.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#80b1d3",
+    "displayName" : "Recreation",
+    "id" : "cat_9a85e908-ff9e-4a11-83f1-ee3bb1aeca96",
+    "parent" : "cat_9fd95f72-6820-4bb3-9ef3-cb61b4d28d15",
+    "patterns" : [
+      "YMCA",
+      "CINEPLEX"
+    ],
+    "symbol" : "tv.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fdb462",
+    "displayName" : "Education",
+    "id" : "cat_e7eb9c95-5b98-4b48-bb00-a889e3e1b3db",
+    "patterns" : [],
+    "symbol" : "books.vertical.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fdb462",
+    "displayName" : "Software",
+    "id" : "cat_d82cd848-4433-4d86-94d6-b5f027c94d38",
+    "parent" : "cat_e7eb9c95-5b98-4b48-bb00-a889e3e1b3db",
+    "patterns" : [
+      "CHATGPT",
+      "PERPLEXITY",
+      "Adobe",
+      "GRAMMARLY"
+    ],
+    "symbol" : "books.vertical.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fdb462",
+    "displayName" : "Music",
+    "id" : "cat_5fdd9576-c2cb-45e0-b067-2a5ae38af6d7",
+    "parent" : "cat_e7eb9c95-5b98-4b48-bb00-a889e3e1b3db",
+    "patterns" : [
+      "LONG & MCQUADE"
+    ],
+    "symbol" : "books.vertical.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fdb462",
+    "displayName" : "Creative",
+    "id" : "cat_dcaa326f-766e-4928-aad8-6c4d2369d657",
+    "parent" : "cat_e7eb9c95-5b98-4b48-bb00-a889e3e1b3db",
+    "patterns" : [
+      "MICHAELS"
+    ],
+    "symbol" : "books.vertical.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#b3de69",
+    "displayName" : "Apparel",
+    "id" : "cat_3625f43a-c9c5-4d95-bc90-0b250d17b2aa",
+    "patterns" : [],
+    "symbol" : "tshirt.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#b3de69",
+    "displayName" : "Clothing",
+    "id" : "cat_a7293b5e-fe11-4c39-a473-ef7f96252e0d",
+    "parent" : "cat_3625f43a-c9c5-4d95-bc90-0b250d17b2aa",
+    "patterns" : [
+      "H&M ",
+      "HM ",
+      "ZARA",
+      "VALUE VILLAGE",
+      "WINNERS",
+      "SPORT CHEK",
+      "ARITZIA",
+      "OLD NAVY",
+      "MARSHALL",
+      "HUDSON.S BAY",
+      "GOODWILL",
+      "MUJI",
+      "MOUNTAIN WAREHOUSE",
+      "LA MAISON SIMONS",
+      "BOATHOUSE",
+      "BLUENOTES",
+      "JOURNEYS",
+      "ZUMIEZ",
+      "BROWNSSHOES",
+      "BROWNS #",
+      "UNIQLO",
+      "LULULEMON",
+      "LE CHATEAU",
+      "GAP CANADA"
+    ],
+    "symbol" : "tshirt.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fccde5",
+    "displayName" : "Household",
+    "id" : "cat_310cfb31-6658-4dd0-a8c8-3b0e6f2fd3b7",
+    "patterns" : [],
+    "symbol" : "house.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fccde5",
+    "displayName" : "Rent",
+    "id" : "cat_6dccb090-89df-4e92-b0df-1a6be4069c48",
+    "parent" : "cat_310cfb31-6658-4dd0-a8c8-3b0e6f2fd3b7",
+    "patterns" : [],
+    "symbol" : "house.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fccde5",
+    "displayName" : "Household Utilities",
+    "id" : "cat_cf7404de-587f-4889-b96a-8d9d42c2c827",
+    "parent" : "cat_310cfb31-6658-4dd0-a8c8-3b0e6f2fd3b7",
+    "patterns" : [],
+    "symbol" : "house.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fccde5",
+    "displayName" : "Furnishing",
+    "id" : "cat_8f143da2-9da6-4a51-80a8-ab264918bc5b",
+    "parent" : "cat_310cfb31-6658-4dd0-a8c8-3b0e6f2fd3b7",
+    "patterns" : [
+      "IKEA"
+    ],
+    "symbol" : "house.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fccde5",
+    "displayName" : "Hardware",
+    "id" : "cat_1841933a-c07e-4943-9aa0-2c7f74b0e35a",
+    "parent" : "cat_310cfb31-6658-4dd0-a8c8-3b0e6f2fd3b7",
+    "patterns" : [
+      "CANADIAN TIRE",
+      "HOME DEPOT",
+      "HOME HARDWARE",
+      "CDN TIRE"
+    ],
+    "symbol" : "house.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fccde5",
+    "displayName" : "Electronics",
+    "id" : "cat_e2e4104a-12c8-484a-8207-49d7a5af0521",
+    "parent" : "cat_310cfb31-6658-4dd0-a8c8-3b0e6f2fd3b7",
+    "patterns" : [
+      "BEST BUY"
+    ],
+    "symbol" : "house.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fccde5",
+    "displayName" : "General",
+    "id" : "cat_7a558599-8cca-46f3-ab23-a76ed35409dc",
+    "parent" : "cat_310cfb31-6658-4dd0-a8c8-3b0e6f2fd3b7",
+    "patterns" : [
+      "DOLLARAMA",
+      "STOKES"
+    ],
+    "symbol" : "house.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#bc80bd",
+    "displayName" : "Utilities",
+    "id" : "cat_3bba3fc9-2901-4014-9acc-c565edd379de",
+    "patterns" : [],
+    "symbol" : "phone.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#bc80bd",
+    "displayName" : "Phone",
+    "id" : "cat_db747c2a-5139-41a3-a6db-a39c7460343b",
+    "parent" : "cat_3bba3fc9-2901-4014-9acc-c565edd379de",
+    "patterns" : [
+      "KOODO"
+    ],
+    "symbol" : "phone.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#ffed6f",
+    "displayName" : "Banking",
+    "id" : "cat_239c2c69-e8bf-4142-b44a-fe422d581c65",
+    "patterns" : [],
+    "symbol" : "building.columns.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#ffed6f",
+    "displayName" : "Fees",
+    "id" : "cat_db7ea947-0adc-4d73-9ba5-4a1de49cf031",
+    "parent" : "cat_239c2c69-e8bf-4142-b44a-fe422d581c65",
+    "patterns" : [
+      "SERVICE CHARGE",
+      "PURCHASE INTEREST",
+      "OVERDRAFT",
+      "NETWORK TRANSACTION FEE",
+      "E-TRANSFER NETWORK FEE",
+      "^ANNUAL FEE$",
+      "CASH ADV"
+    ],
+    "symbol" : "building.columns.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#ccebc5",
+    "displayName" : "Giving",
+    "id" : "cat_4203fa5c-5e02-417c-8394-7b7ef4da93f7",
+    "patterns" : [],
+    "symbol" : "gift.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#ccebc5",
+    "displayName" : "Donation",
+    "id" : "cat_f6fdf751-06f0-476d-a52f-d61a481811a8",
+    "parent" : "cat_4203fa5c-5e02-417c-8394-7b7ef4da93f7",
+    "patterns" : [
+      "RED CROSS",
+      "UNICEF",
+      "CANADAHELPS"
+    ],
+    "symbol" : "gift.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fb9a99",
+    "displayName" : "Social Life",
+    "id" : "cat_a2cd86e8-1446-4e71-a28f-c42e0059c76c",
+    "patterns" : [],
+    "symbol" : "person.2.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#fb9a99",
+    "displayName" : "Outing",
+    "id" : "cat_11240a2c-4d21-46c9-b5b2-f92dedf5415b",
+    "parent" : "cat_a2cd86e8-1446-4e71-a28f-c42e0059c76c",
+    "patterns" : [
+      "LCBO",
+      "TICKETMASTER",
+      "BOWLING"
+    ],
+    "symbol" : "person.2.fill",
+    "transactionType" : "expense"
+  },
+  {
+    "color" : "#8dd3c7",
+    "displayName" : "Employment",
+    "id" : "cat_0b3d4329-e09b-4ba3-8b35-20cd13343527",
+    "patterns" : [],
+    "symbol" : "briefcase.fill",
+    "transactionType" : "income"
+  },
+  {
+    "color" : "#8dd3c7",
+    "displayName" : "Salary",
+    "id" : "cat_f6eee3e8-cd9e-46f5-9102-d68973ef853a",
+    "parent" : "cat_0b3d4329-e09b-4ba3-8b35-20cd13343527",
+    "patterns" : [
+      "PAYROLL DEPOSIT",
+      "PAY.*INITECH"
+    ],
+    "symbol" : "briefcase.fill",
+    "transactionType" : "income"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Returns",
+    "id" : "cat_f1f28bdb-5d84-4fb2-a429-1729a5cb5000",
+    "patterns" : [],
+    "symbol" : "arrow.counterclockwise",
+    "transactionType" : "income"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Government",
+    "id" : "cat_c809a6a7-3a99-46d4-aa58-bc218321ef91",
+    "parent" : "cat_f1f28bdb-5d84-4fb2-a429-1729a5cb5000",
+    "patterns" : [
+      "DEPOSIT CANADA",
+      "DEPOSIT TPS.GST",
+      "CarbonRebate"
+    ],
+    "symbol" : "arrow.counterclockwise",
+    "transactionType" : "income"
+  },
+  {
+    "color" : "#bebada",
+    "displayName" : "Refunds",
+    "id" : "cat_5e00c7d4-29b4-448f-be3b-b49b3f51e7ee",
+    "parent" : "cat_f1f28bdb-5d84-4fb2-a429-1729a5cb5000",
+    "patterns" : [
+      "Fee Reversal",
+      "SERVICE CHARGE DISCOUNT",
+      "CREDIT MEMO(?!.*UNIVERSITY)",
+      "CREDIT ADJUSTMENT",
+      "CASHBACK",
+      "ANNUAL FEE REBATE"
+    ],
+    "symbol" : "arrow.counterclockwise",
+    "transactionType" : "income"
+  },
+  {
+    "color" : "#fdb462",
+    "displayName" : "Interest",
+    "id" : "cat_fc519644-8cf9-4038-a8b8-2ad88abf9d3d",
+    "patterns" : [],
+    "symbol" : "chart.line.uptrend.xyaxis",
+    "transactionType" : "income"
+  },
+  {
+    "color" : "#fdb462",
+    "displayName" : "Savings",
+    "id" : "cat_45ebcf63-3767-45b7-95c1-766136f1f183",
+    "parent" : "cat_fc519644-8cf9-4038-a8b8-2ad88abf9d3d",
+    "patterns" : [
+      "INTEREST"
+    ],
+    "symbol" : "chart.line.uptrend.xyaxis",
+    "transactionType" : "income"
+  },
+  {
+    "color" : "#fdb462",
+    "displayName" : "Education Income",
+    "id" : "cat_6b0ad597-de7d-48d1-81f6-3d6af5326088",
+    "patterns" : [],
+    "symbol" : "graduationcap.fill",
+    "transactionType" : "income"
+  },
+  {
+    "color" : "#fdb462",
+    "displayName" : "Scholarship",
+    "id" : "cat_69ba7fba-18f6-44b1-8445-4bb4d1bc3950",
+    "parent" : "cat_6b0ad597-de7d-48d1-81f6-3d6af5326088",
+    "patterns" : [
+      "MAPLE UNIVERSITY"
+    ],
+    "symbol" : "graduationcap.fill",
+    "transactionType" : "income"
+  },
+  {
+    "color" : "#aec6cf",
+    "displayName" : "Transfer In",
+    "id" : "cat_5e403cf2-ed60-42f0-96b2-1117deebac84",
+    "patterns" : [],
+    "symbol" : "arrow.down.circle.fill",
+    "transactionType" : "transfer_in"
+  },
+  {
+    "color" : "#aec6cf",
+    "displayName" : "Transfer Out",
+    "id" : "cat_01de5b1a-76dc-414b-9d9f-562f5c47536b",
+    "patterns" : [],
+    "symbol" : "arrow.up.circle.fill",
+    "transactionType" : "transfer_out"
+  },
+  {
+    "color" : "#b7b3d2",
+    "displayName" : "Maintanence",
+    "id" : "cat_6b7fdf96-4645-4dcd-ac3a-bfe0576c71f9",
+    "parent" : "cat_50fbdf0a-c993-4aab-a811-57c3c6f50bae",
+    "patterns" : [],
+    "symbol" : "car.fill",
+    "transactionType" : "expense"
+  }
+]

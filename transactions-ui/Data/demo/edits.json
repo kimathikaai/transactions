@@ -1,0 +1,36 @@
+{
+  "1d507418f8e9" : {
+    "category" : "cat_4aaf9a1e-5185-4646-8650-2ed9686bbdbf",
+    "notes" : "Monthly bulk run — split groceries with roommate, they still owe me half of this",
+    "subcategory" : "cat_09fc5cfa-b6be-49ca-8381-51bdfe482a6c",
+    "updatedAt" : "2026-09-20T18:12:04Z"
+  },
+  "2b2cd033506e" : {
+    "category" : "cat_310cfb31-6658-4dd0-a8c8-3b0e6f2fd3b7",
+    "notes" : "New standing desk for the home office",
+    "subcategory" : "cat_8f143da2-9da6-4a51-80a8-ab264918bc5b",
+    "updatedAt" : "2026-09-20T18:13:22Z"
+  },
+  "5f308347f425" : {
+    "category" : "cat_0b3d4329-e09b-4ba3-8b35-20cd13343527",
+    "updatedAt" : "2026-08-10T01:41:16Z"
+  },
+  "5f30d93f4f6c" : {
+    "category" : "cat_50fbdf0a-c993-4aab-a811-57c3c6f50bae",
+    "notes" : "Conference trip — expense to finance",
+    "subcategory" : "cat_51169bb9-ce58-4c28-b4a4-839b738e8179",
+    "updatedAt" : "2026-09-20T18:14:47Z"
+  },
+  "61bd38f576a5" : {
+    "category" : "cat_9fd95f72-6820-4bb3-9ef3-cb61b4d28d15",
+    "notes" : "Shared family plan",
+    "subcategory" : "cat_56eb6f87-06a7-407a-8511-8f46a4c39c4f",
+    "updatedAt" : "2026-08-10T01:41:26Z"
+  },
+  "709741700442" : {
+    "category" : "cat_72401265-ed3c-42d4-98cb-0352cfd02d73",
+    "notes" : "Cancel before the September renewal",
+    "subcategory" : "cat_115c213a-2f5a-4e55-aaf0-552a9f078a2e",
+    "updatedAt" : "2026-09-21T17:37:59Z"
+  }
+}

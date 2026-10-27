@@ -1,0 +1,44 @@
+[
+  {
+    "csvFileName" : "D0000000-0000-0000-0000-000000000001.csv",
+    "id" : "D0000000-0000-0000-0000-000000000001",
+    "initialBalance" : 2400,
+    "name" : "Everyday Chequing",
+    "type" : "chequing"
+  },
+  {
+    "csvFileName" : "D0000000-0000-0000-0000-000000000002.csv",
+    "id" : "D0000000-0000-0000-0000-000000000002",
+    "initialBalance" : 8000,
+    "name" : "Rainy Day Savings",
+    "type" : "savings"
+  },
+  {
+    "csvFileName" : "D0000000-0000-0000-0000-000000000003.csv",
+    "id" : "D0000000-0000-0000-0000-000000000003",
+    "initialBalance" : 0,
+    "name" : "Cashback Credit Card",
+    "type" : "debt"
+  },
+  {
+    "csvFileName" : "D0000000-0000-0000-0000-000000000004.csv",
+    "id" : "D0000000-0000-0000-0000-000000000004",
+    "initialBalance" : 0,
+    "name" : "Travel Rewards Card",
+    "type" : "debt"
+  },
+  {
+    "csvFileName" : "D0000000-0000-0000-0000-000000000005.csv",
+    "id" : "D0000000-0000-0000-0000-000000000005",
+    "initialBalance" : 15000,
+    "name" : "TFSA Investing",
+    "type" : "investment"
+  },
+  {
+    "csvFileName" : "D0000000-0000-0000-0000-000000000006.csv",
+    "id" : "D0000000-0000-0000-0000-000000000006",
+    "initialBalance" : 3200,
+    "name" : "Bitcoin Wallet",
+    "type" : "investment"
+  }
+]

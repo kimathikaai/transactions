@@ -1,0 +1,82 @@
+[
+  {
+    "colorHex" : "#80b1d3",
+    "createdAt" : "2024-09-01T00:00:00Z",
+    "emoji" : "🛟",
+    "id" : "E0000000-0000-0000-0000-000000000001",
+    "name" : "Emergency Fund",
+    "sortOrder" : 0,
+    "tagline" : "3 months of expenses",
+    "target" : 10000
+  },
+  {
+    "colorHex" : "#bebada",
+    "createdAt" : "2024-09-01T00:00:00Z",
+    "emoji" : "✈️",
+    "id" : "E0000000-0000-0000-0000-000000000002",
+    "name" : "Japan Trip",
+    "sortOrder" : 1,
+    "tagline" : "Spring 2026 cherry blossoms",
+    "target" : 5000
+  },
+  {
+    "colorHex" : "#8dd3c7",
+    "createdAt" : "2025-10-01T00:00:00Z",
+    "emoji" : "💻",
+    "id" : "E0000000-0000-0000-0000-000000000003",
+    "name" : "New Laptop",
+    "sortOrder" : 2,
+    "tagline" : "M-series upgrade",
+    "target" : 2500
+  },
+  {
+    "colorHex" : "#fb8072",
+    "createdAt" : "2025-11-01T00:00:00Z",
+    "emoji" : "🔧",
+    "id" : "E0000000-0000-0000-0000-000000000004",
+    "name" : "Car Maintenance",
+    "sortOrder" : 3,
+    "tagline" : "Winter tires + service",
+    "target" : 1500
+  },
+  {
+    "colorHex" : "#80b1d3",
+    "createdAt" : "2026-08-06T22:22:27Z",
+    "emoji" : "🌏",
+    "id" : "B16C3B55-95E0-408E-B7B7-94120B41FDC7",
+    "name" : "Cross Europe Trip",
+    "sortOrder" : 4,
+    "tagline" : "",
+    "target" : 40000
+  },
+  {
+    "colorHex" : "#80b1d3",
+    "createdAt" : "2026-08-14T06:15:39Z",
+    "emoji" : "🪣",
+    "id" : "6CB20428-C475-4D2E-8D40-44ED7787F7BF",
+    "name" : "New Car",
+    "sortOrder" : 5,
+    "tagline" : "",
+    "target" : 50000
+  },
+  {
+    "colorHex" : "#80b1d3",
+    "createdAt" : "2026-08-14T06:16:15Z",
+    "emoji" : "🪣",
+    "id" : "49F9A3B7-215F-4C6E-A5FB-B5CD357DA645",
+    "name" : "Down Payment House",
+    "sortOrder" : 6,
+    "tagline" : "",
+    "target" : 40000
+  },
+  {
+    "colorHex" : "#80b1d3",
+    "createdAt" : "2026-09-21T23:13:01Z",
+    "emoji" : "🪣",
+    "id" : "20327303-FE69-491A-8580-ED215D2D2FE8",
+    "name" : "1 Year Apartment",
+    "sortOrder" : 7,
+    "tagline" : "",
+    "target" : 5000
+  }
+]

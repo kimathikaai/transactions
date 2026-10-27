@@ -1,0 +1,31 @@
+# Xcode user-specific data
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+**/xcuserdata/
+
+# Scratch
+tmp/
+
+# Build products
+build/
+DerivedData/
+
+# Code coverage artifacts
+*.profraw
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Local skill tooling state
+.superpowers/
+
+# Personal data — a separate private repo nested at this path
+transactions-ui/Data/real/
+
+# Local-only agent config
+CLAUDE.md
+.claude/
