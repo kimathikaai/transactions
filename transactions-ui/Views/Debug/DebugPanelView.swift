@@ -19,6 +19,7 @@ struct DebugPanelView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                loadWarningsSection
                 rowCountsSection
                 dataProfileSection
                 categoryBrokenEditsSection
@@ -46,6 +47,25 @@ struct DebugPanelView: View {
     }
 
     // MARK: - Sections
+
+    private var loadWarningsSection: some View {
+        section(
+            title: "Load warnings",
+            description: "Non-fatal problems from the last load. Files on disk are not rewritten."
+        ) {
+            if viewModel.loadWarnings.isEmpty {
+                Text("No load warnings.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(viewModel.loadWarnings) { w in
+                        Label("\(w.scope): \(w.message)", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                    }
+                }
+            }
+        }
+    }
 
     private var rowCountsSection: some View {
         section(title: "Row counts", description: "Counts per data type. Refresh to re-fetch.") {

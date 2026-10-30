@@ -7,7 +7,7 @@ struct transactions_uiApp: App {
 
     var body: some Scene {
         WindowGroup {
-            DashboardSidebarView()
+            DashboardTabView()
                 .environment(viewModel)
                 .preferredColorScheme(.dark)
                 #if os(macOS)
