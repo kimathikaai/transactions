@@ -25,6 +25,11 @@ struct TransactionCard<Actions: View>: View {
     /// The row's action items, shared by both flanking menus and the context menu.
     @ViewBuilder let menuActions: () -> Actions
 
+    /// Floor for the details text, so a long note can never squeeze it out.
+    private let detailsMinWidth: CGFloat = 80
+    /// Cap for the notes column; it truncates beyond this.
+    private let notesMaxWidth: CGFloat = 160
+
     var body: some View {
         HStack(spacing: 8) {
             Menu { menuActions() } label: {
@@ -98,15 +103,19 @@ struct TransactionCard<Actions: View>: View {
                 .frame(width: 110, alignment: .leading)
                 .lineLimit(1)
 
+            // Details + notes share the row's flexible space. Details always keeps at least
+            // `detailsMinWidth` and fills whatever is left; notes are capped at
+            // `notesMaxWidth`. Notes get first claim (higher layout priority), but SwiftUI
+            // reserves details' minimum first, so a long note truncates before details do.
             Text(snapshot.details)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .frame(minWidth: detailsMinWidth, maxWidth: .infinity, alignment: .leading)
 
-            // Edited notes, when present. A leading "|" separates the note from
-            // the details; fixed-width so it never crowds out the details or amount,
-            // truncating with an ellipsis. Italic distinguishes it from the details
-            // text; the full note is available on hover.
+            // Edited notes, when present. A leading "|" separates the note from the
+            // details, truncating with an ellipsis. Italic distinguishes it from the
+            // details text; the full note is available on hover.
             if let notes = snapshot.notes, !notes.isEmpty {
                 HStack(spacing: 6) {
                     Text("|")
@@ -119,11 +128,10 @@ struct TransactionCard<Actions: View>: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
-                .frame(width: 160, alignment: .leading)
+                .frame(maxWidth: notesMaxWidth, alignment: .leading)
+                .layoutPriority(1)
                 .help(notes)
             }
-
-            Spacer()
 
             statusIcons
                 .frame(width: 30, alignment: .trailing)
@@ -133,6 +141,8 @@ struct TransactionCard<Actions: View>: View {
                 .fontWeight(.semibold)
                 .monospacedDigit()
                 .foregroundStyle(amountColor)
+                .fixedSize()   // never compress or wrap the amount
+                .layoutPriority(2)
         }
     }
 
