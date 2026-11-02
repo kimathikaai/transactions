@@ -6,7 +6,6 @@ struct ReservesPage: View {
     @State private var moneyRequest: ReserveMoneyRequest?
     @State private var selectedReserve: Reserve?
     @State private var activityReserve: Reserve?
-    @State private var isHoveringReservoir = false
 
     /// A pending money-movement action, targeted at the right-clicked reserve.
     /// Item-driven so the sheet always opens pre-targeted (no in-sheet picker).
@@ -16,29 +15,25 @@ struct ReservesPage: View {
         let action: ReserveMoneyAction
     }
 
-    private let reservoirCardHeight: CGFloat = 120
+    /// Shared content height of the Reservoir and Sources cards; Sources scrolls if taller.
+    private let reservoirCardHeight: CGFloat = 100
+    private let reservoirCardWidth: CGFloat = 240
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            TabbedSection {
-                SectionTab(isHoveringReservoir ? "Sources" : "Reservoir", symbol: "drop") {
+            // Reservoir (fixed width) and Sources (fills the rest) side by side, no rail gutter.
+            HStack(alignment: .top, spacing: 12) {
+                SectionContainer(title: "Reservoir") {
                     SummaryContent(summary: viewModel.reservoirSummary)
                         .frame(height: reservoirCardHeight)
-                        .opacity(isHoveringReservoir ? 0 : 1)
-                        // Sources cover overlay: matches the summary frame, scrolls if taller.
-                        .overlay {
-                            ScrollView {
-                                SourcesContent(sources: viewModel.perSourceSummary)
-                            }
-                            .opacity(isHoveringReservoir ? 1 : 0)
-                            .allowsHitTesting(isHoveringReservoir)
-                        }
                 }
-            }
-            .contentShape(Rectangle())
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.05)) {
-                    isHoveringReservoir = hovering
+                .frame(width: reservoirCardWidth)
+
+                SectionContainer(title: "Sources") {
+                    ScrollView {
+                        SourcesContent(sources: viewModel.perSourceSummary)
+                    }
+                    .frame(height: reservoirCardHeight)
                 }
             }
 
