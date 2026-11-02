@@ -1,15 +1,11 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Alternative "Transactions 2" layout of `TransactionListView`: Expenses / Income
-/// breakdowns side by side on top, then the transaction list with the vertical month range
-/// chart to its right. Income and Month Range share one fixed-width right column. No
-/// section-tab rails, but every row keeps the gutter a rail would occupy so card edges line
-/// up with the other pages.
-///
-/// A deliberate standalone copy of `TransactionListView` (filters, sort, sheets, row menus,
-/// CSV export); only `body` and the month range chart differ. Each tab keeps its own
-/// filter state.
+/// The Transactions page: Expenses / Income breakdowns side by side on top, then the
+/// transaction list with the vertical month range chart to its right. Income and Month Range
+/// share one fixed-width right column; Expenses and the list take the rest. There are no
+/// section-tab rails (and no rail gutter). A header toggle swaps the list card for the
+/// Reimbursements review.
 struct TransactionSplitView: View {
     @Environment(AppViewModel.self) private var viewModel
     @State private var searchText = ""
@@ -40,10 +36,6 @@ struct TransactionSplitView: View {
     @State private var sortField: SortField = .date
     @State private var sortAscending = false
 
-    /// Left inset for every row: `TabRail`'s 36pt button width + `TabbedSection`'s 12pt
-    /// spacing, so cards align with tabbed sections elsewhere even though this page has no rail.
-    private let railGutter: CGFloat = 48
-
     /// Shared width of the right-hand column (Income card above, Month Range card below):
     /// one 200pt breakdown legend column + the card's 2×20pt padding, so Income's first legend
     /// column is fully visible.
@@ -55,6 +47,9 @@ struct TransactionSplitView: View {
     /// Measured height of the Month Range card. The Transactions card is pinned to it so the
     /// two bottoms line up; `nil` until first layout (the list then takes the free height).
     @State private var monthRangeCardHeight: CGFloat?
+
+    /// When true the list card shows `ReimbursementReviewView` instead of transactions.
+    @State private var showingReimbursements = false
 
     /// Field the transaction list is ordered by. The default (`.date`, descending)
     /// reproduces the newest-first order inherited from `transactionsByDateDesc`.
@@ -167,22 +162,22 @@ struct TransactionSplitView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .top, spacing: 12) {
-                SectionContainer(title: "Expenses") { breakdown(.expense) }
-                SectionContainer(title: "Income") { breakdown(.income) }
+                SectionContainer(title: "Expense by Category") { breakdown(.expense) }
+                SectionContainer(title: "Income by Category") { breakdown(.income) }
                     .frame(width: sideColumnWidth)
             }
-            .padding(.leading, railGutter)
 
             HStack(alignment: .top, spacing: 12) {
-                SectionContainer(title: "Transactions") { transactionsContent }
+                SectionContainer(title: showingReimbursements ? "Reimbursements" : "Transactions") {
+                    if showingReimbursements { reimbursementsContent } else { transactionsContent }
+                }
                     .frame(height: monthRangeCardHeight)
-                SectionContainer(title: "Month Range") { periodContent }
+                SectionContainer(title: "Monthly Cash Flow") { periodContent }
                     .frame(width: sideColumnWidth)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                         monthRangeCardHeight = $0
                     }
             }
-            .padding(.leading, railGutter)
             .frame(maxHeight: .infinity, alignment: .top)
         }
         .padding(20)
@@ -299,6 +294,7 @@ struct TransactionSplitView: View {
                 resetButton
                 filterMenu
                 downloadButton
+                reimbursementsToggle
                 searchPill
             }
             Divider()
@@ -315,6 +311,19 @@ struct TransactionSplitView: View {
                 }.padding(.trailing, 8)
             }
         }
+    }
+
+    /// Reimbursements review in place of the list. The transaction filters don't apply to it,
+    /// so the header carries only the toggle back.
+    private var reimbursementsContent: some View {
+        VStack(spacing: 8) {
+            HStack {
+                reimbursementsToggle
+                Spacer()
+            }
+            ReimbursementReviewView()
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     /// A transaction row's actions, shared by the tap-to-open `Menu` and the
@@ -406,6 +415,22 @@ struct TransactionSplitView: View {
         .fixedSize()
         .disabled(cachedTransactions.isEmpty)
         .help("Export filtered transactions to CSV")
+    }
+
+    private var reimbursementsToggle: some View {
+        Button {
+            showingReimbursements.toggle()
+        } label: {
+            Image(systemName: "arrow.uturn.backward")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(showingReimbursements ? Color.accentColor : .secondary)
+                .frame(width: 28, height: 28)
+                .glassEffect(in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .help(showingReimbursements ? "Back to transactions" : "Reimbursements — review and unlink")
     }
 
     private var searchPill: some View {

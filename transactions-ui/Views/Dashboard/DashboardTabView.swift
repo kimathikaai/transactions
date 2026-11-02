@@ -3,7 +3,6 @@ import SwiftUI
 /// Top-level pages. String raw values so the selection persists via `@AppStorage`.
 private enum DashboardTab: String {
     case transactions
-    case transactionsSplit
     case categories
     case accounts
     case reserves
@@ -27,9 +26,6 @@ struct DashboardTabView: View {
                 PageContainer { AccountsPage() }
             }
             Tab("Transactions", systemImage: "list.bullet", value: DashboardTab.transactions) {
-                PageContainer { TransactionListView() }
-            }
-            Tab("Transactions 2", systemImage: "rectangle.split.2x1", value: DashboardTab.transactionsSplit) {
                 PageContainer { TransactionSplitView() }
             }
             Tab("Reserves", systemImage: "tray.2", value: DashboardTab.reserves) {

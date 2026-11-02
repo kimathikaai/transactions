@@ -1,19 +1,15 @@
 import Charts
 import SwiftUI
 
-/// A vertical, 120pt-wide variant of `MonthlyFlowRangeBarChart`: the same income/expense
-/// month-range control rotated 90°. Months run down the Y axis (newest at the top), bars grow
-/// horizontally from the zero rule (income right, expenses left), and the range summary sits
-/// underneath. It scrolls vertically, showing `visibleMonths` at a time.
+/// A vertical monthly income/expense bar chart that doubles as the month-range control for the
+/// Transactions page. Months run down the Y axis (newest at the top), bars grow horizontally
+/// from the zero rule (income right, expenses left), and the range summary sits underneath.
+/// It scrolls vertically, showing `visibleMonths` at a time.
 ///
-/// Not wired into the app yet — exercised via its `#Preview` only. Deliberately a standalone
-/// copy (no shared types with the horizontal chart), so its private helpers mirror that file.
-///
-/// Selection mechanics are identical to the horizontal chart: plain click selects one month
-/// (the anchor); plain-clicking the sole selection resets to the full range; shift+click
-/// (macOS) extends from the anchor. The row under the pointer is resolved via
-/// `.chartYSelection` on the integer month-index axis, and hovering brightens it. There is no
-/// hover date pill or guide line.
+/// Selection: plain click selects one month (the anchor); plain-clicking the sole selection
+/// resets to the full range; shift+click (macOS) extends from the anchor. The row under the
+/// pointer is resolved via `.chartYSelection` on the integer month-index axis, and hovering
+/// brightens it. There is no hover date pill or guide line.
 ///
 /// Precondition: `globalStart <= startMonth <= endMonth <= globalEnd`, and the global range
 /// spans at least two months.
@@ -104,8 +100,8 @@ struct MonthlyFlowRangeVerticalBarChart: View {
         .chartScrollPosition(y: $scrollPosition)
         .chartLegend(.hidden)
         .frame(height: CGFloat(visibleMonths) * rowHeight)
-        // Same approach as the horizontal chart: `.chartYSelection` + a plain tap gesture,
-        // neither of which swallows the scroll drag.
+        // `.chartYSelection` + a plain tap gesture, neither of which swallows the scroll drag
+        // (a hit-testing `.chartOverlay` rectangle would).
         .chartYSelection(value: $selectedIndex)
         .onTapGesture { handleTap(snappedIndex(selectedIndex).map(month(at:))) }
     }
@@ -235,11 +231,11 @@ struct MonthlyFlowRangeVerticalBarChart: View {
         Calendar.current.dateInterval(of: .month, for: date)?.start ?? date
     }
 
-    // MARK: - Pure logic (copied from MonthlyFlowRangeBarChart)
+    // MARK: - Pure logic (unit-tested)
 
     /// Plain: a single month `(tapped, tapped)`. Extend: the ordered inclusive span of
     /// `anchor`/`tapped`. Both clamped to `globalStart...globalEnd`; never empty.
-    private static func resolveRange(
+    static func resolveRange(
         anchor: Date,
         tapped: Date,
         extend: Bool,
@@ -255,14 +251,14 @@ struct MonthlyFlowRangeVerticalBarChart: View {
 
     /// Sum income/expense/net over months in `start...end` inclusive, with per-month
     /// averages (zero when nothing matches).
-    private static func summary(metrics: [MonthlyMetric], start: Date, end: Date) -> VerticalFlowSummary {
+    static func summary(metrics: [MonthlyMetric], start: Date, end: Date) -> FlowSummary {
         let matched = metrics.filter { $0.month >= start && $0.month <= end }
         let income = matched.reduce(0) { $0 + $1.income }
         let expense = matched.reduce(0) { $0 + $1.expense }
         let net = matched.reduce(0) { $0 + $1.net }
         let count = matched.count
         let divisor = Double(max(count, 1))
-        return VerticalFlowSummary(
+        return FlowSummary(
             income: income,
             expense: expense,
             net: net,
@@ -274,9 +270,8 @@ struct MonthlyFlowRangeVerticalBarChart: View {
     }
 }
 
-/// Summed and averaged flow figures over a selected month range. A private copy of
-/// `FlowSummary` (which is internal to the horizontal chart's file).
-private struct VerticalFlowSummary {
+/// Summed and averaged flow figures over a selected month range.
+struct FlowSummary {
     let income: Double
     let expense: Double
     let net: Double
@@ -295,7 +290,7 @@ private struct VerticalFlowSummary {
 /// selection (wraps for ranges) plus summed Inc / Exp / Net rows. Hovering (macOS) swaps the
 /// figures to per-month averages for multi-month ranges.
 private struct RangeSummaryPanel: View {
-    let summary: VerticalFlowSummary
+    let summary: FlowSummary
     let start: Date
     let end: Date
 
@@ -357,8 +352,8 @@ private struct RangeSummaryPanel: View {
 
 // MARK: - Flow category
 
-/// Income / Expenses / Net styling. A file-private copy of the enum in
-/// `MonthlyFlowRangeBarChart.swift`, plus short labels for the narrow panel.
+/// Income / Expenses / Net styling, plus short labels for the narrow panel. A file-private
+/// copy of the same enum in `MonthlyFlowBarChart.swift` (that one is file-private too).
 private enum FlowCategory: String, CaseIterable, Plottable {
     case income = "Income"
     case expenses = "Expenses"

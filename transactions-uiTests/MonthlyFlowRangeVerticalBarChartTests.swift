@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import transactions_ui
 
-@Suite("Monthly flow range bar chart")
-struct MonthlyFlowRangeBarChartTests {
+@Suite("Monthly flow range vertical bar chart")
+struct MonthlyFlowRangeVerticalBarChartTests {
 
     // MARK: - Helpers
 
@@ -33,7 +33,7 @@ struct MonthlyFlowRangeBarChartTests {
 
     @Test("Plain click selects a single month")
     func plainClickSingleMonth() {
-        let r = MonthlyFlowRangeBarChart.resolveRange(
+        let r = MonthlyFlowRangeVerticalBarChart.resolveRange(
             anchor: month(2025, 6), tapped: month(2025, 6), extend: false,
             globalStart: month(2024, 1), globalEnd: month(2026, 1)
         )
@@ -43,7 +43,7 @@ struct MonthlyFlowRangeBarChartTests {
 
     @Test("Shift-extend forward yields the inclusive ordered range")
     func extendForward() {
-        let r = MonthlyFlowRangeBarChart.resolveRange(
+        let r = MonthlyFlowRangeVerticalBarChart.resolveRange(
             anchor: month(2025, 1), tapped: month(2025, 3), extend: true,
             globalStart: month(2024, 1), globalEnd: month(2026, 1)
         )
@@ -53,7 +53,7 @@ struct MonthlyFlowRangeBarChartTests {
 
     @Test("Shift-extend backward yields the same ordered range (order-independent)")
     func extendBackward() {
-        let r = MonthlyFlowRangeBarChart.resolveRange(
+        let r = MonthlyFlowRangeVerticalBarChart.resolveRange(
             anchor: month(2025, 3), tapped: month(2025, 1), extend: true,
             globalStart: month(2024, 1), globalEnd: month(2026, 1)
         )
@@ -63,7 +63,7 @@ struct MonthlyFlowRangeBarChartTests {
 
     @Test("Endpoints clamp to the global bounds")
     func clampsToGlobalBounds() {
-        let r = MonthlyFlowRangeBarChart.resolveRange(
+        let r = MonthlyFlowRangeVerticalBarChart.resolveRange(
             anchor: month(2023, 1), tapped: month(2027, 1), extend: true,
             globalStart: month(2024, 1), globalEnd: month(2026, 1)
         )
@@ -73,7 +73,7 @@ struct MonthlyFlowRangeBarChartTests {
 
     @Test("Result invariant: start is never after end")
     func invariantStartLessThanOrEqualEnd() {
-        let r = MonthlyFlowRangeBarChart.resolveRange(
+        let r = MonthlyFlowRangeVerticalBarChart.resolveRange(
             anchor: month(2025, 5), tapped: month(2025, 2), extend: true,
             globalStart: month(2024, 1), globalEnd: month(2026, 1)
         )
@@ -89,7 +89,7 @@ struct MonthlyFlowRangeBarChartTests {
             metric(2025, 2, income: 5000, expense: 2000),
             metric(2025, 3, income: 6000, expense: 4000),
         ]
-        let s = MonthlyFlowRangeBarChart.summary(
+        let s = MonthlyFlowRangeVerticalBarChart.summary(
             metrics: metrics, start: month(2025, 1), end: month(2025, 3)
         )
         #expect(s.count == 3)
@@ -108,7 +108,7 @@ struct MonthlyFlowRangeBarChartTests {
             metric(2025, 1, income: 4000, expense: 3000),
             metric(2025, 2, income: 5000, expense: 2000),
         ]
-        let s = MonthlyFlowRangeBarChart.summary(
+        let s = MonthlyFlowRangeVerticalBarChart.summary(
             metrics: metrics, start: month(2025, 2), end: month(2025, 2)
         )
         #expect(s.count == 1)
@@ -125,7 +125,7 @@ struct MonthlyFlowRangeBarChartTests {
             metric(2025, 2, income: 1000, expense: 0),
             metric(2025, 3, income: 1000, expense: 0),
         ]
-        let s = MonthlyFlowRangeBarChart.summary(
+        let s = MonthlyFlowRangeVerticalBarChart.summary(
             metrics: metrics, start: month(2025, 1), end: month(2025, 3)
         )
         #expect(s.count == 3)
@@ -134,7 +134,7 @@ struct MonthlyFlowRangeBarChartTests {
 
     @Test("Empty selection yields zeros and no averages")
     func emptySelection() {
-        let s = MonthlyFlowRangeBarChart.summary(
+        let s = MonthlyFlowRangeVerticalBarChart.summary(
             metrics: [], start: month(2025, 1), end: month(2025, 3)
         )
         #expect(s.count == 0)

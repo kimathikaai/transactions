@@ -4,9 +4,9 @@ import SwiftUI
 /// first. A flat, static table (no controls): `Date · Expense · Source ·
 /// Amount · [unlink]`. Mirrors `ActivityContent`'s divider-separated layout.
 ///
-/// Embedded as the Transactions page's "Reimbursements" tab (the enclosing
-/// `SectionTab`/`TabbedSection` supplies the card chrome and title), so this
-/// view renders only the table body — no `SectionContainer` of its own.
+/// Embedded in the Transactions page's list card, swapped in by the header's
+/// reimbursements toggle (the enclosing `SectionContainer` supplies the card
+/// chrome and title), so this view renders only the table body.
 ///
 /// Read-only overlay: unlinking returns the snapshot amount to the source's
 /// pool and frees the expense to be linked again (via
