@@ -44,11 +44,13 @@ struct MonthlyFlowRangeVerticalBarChart: View {
     /// `visibleMonths` are in view (newest at the top).
     @State private var scrollPosition: Double = 0
 
-    /// How many months are visible at once before you scroll.
-    private let visibleMonths = 16
+    /// How many months are visible at once before you scroll. Also sets the plot height
+    /// (`visibleMonths * rowHeight`), so callers with less vertical room pass fewer.
+    var visibleMonths: Int = 16
 
     private let rowHeight: CGFloat = 20
-    private let width: CGFloat = 140
+    /// Fixed column width; `nil` fills the width the parent proposes (e.g. a sized card).
+    var width: CGFloat? = 140
 
     // MARK: - Body
 
