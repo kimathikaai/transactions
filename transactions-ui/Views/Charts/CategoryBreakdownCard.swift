@@ -41,7 +41,7 @@ struct CategoryBreakdownCard: View {
     private let legendRowSpacing: CGFloat = 3
     private let legendRowHeight: CGFloat = 18    // fixed so a 3-row column has an exact height
     private let legendColumnWidth: CGFloat = 200 // fixed width → ~3 columns visible, rest scroll
-    private let legendScrollBarGutter: CGFloat = 14 // reserved strip so the scroll bar sits below the rows
+    private let legendScrollBarGutter: CGFloat = 6 // reserved strip so the scroll bar sits below the rows
 
     /// Constant legend height: exactly `legendRowsPerColumn` rows tall regardless of how many
     /// categories are present, so the card never changes height as filters change the count.
