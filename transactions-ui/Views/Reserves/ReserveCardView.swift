@@ -18,58 +18,65 @@ struct ReserveCardView: View {
 
     @Environment(AppViewModel.self) private var viewModel
     @State private var confirmDelete = false
+    @State private var isHovering = false
 
     // Held = still reserved (not yet spent) = Σallocation − Σrelease − Σuse.
     private var heldAmount: Double {
         total(of: reserve.id, reservations: viewModel.reservations)
     }
 
-    // Used = cumulative money spent toward the goal (the teal sub-arc).
+    // Used = cumulative money spent toward the goal (the teal bar segment).
     private var usedAmount: Double {
         used(of: reserve.id, events: viewModel.reserveEvents)
     }
 
-    // Ring total fill (held + used) over target, capped at 1.
+    // Bar total fill (held + used) over target, capped at 1.
     private var filledFraction: Double {
         filledProgress(of: reserve, reservations: viewModel.reservations, events: viewModel.reserveEvents)
     }
 
-    // The spent sub-arc, as a fraction of target, never exceeding the fill.
+    // The spent segment, as a fraction of target, never exceeding the fill.
     private var usedFraction: Double {
         guard reserve.target > 0 else { return 0 }
         return min(filledFraction, usedAmount / reserve.target)
     }
 
+    private let cornerRadius: CGFloat = 12
+
     var body: some View {
         Menu {
             menuItems
         } label: {
-            HStack(alignment: .center, spacing: 12) {
-                ReserveEmojiChip(emoji: reserve.emoji, size: 20)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    ReserveEmojiChip(emoji: reserve.emoji, size: 20)
 
-                ReserveProgressRing(
-                    filledFraction: filledFraction,
-                    usedFraction: usedFraction
-                )
+                    Text(reserve.name)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
 
-                Text(reserve.name)
-                    .font(.callout)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                description
 
-                Spacer(minLength: 12)
-
-                amounts
+                progressSlot
             }
-            .frame(maxWidth: .infinity, minHeight: 25, maxHeight: 25, alignment: .leading)
-            .contentShape(Rectangle())
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .contentShape(.rect(cornerRadius: cornerRadius))
+            .hoverHighlight(in: .rect(cornerRadius: cornerRadius))
+            .background(.thickMaterial, in: .rect(cornerRadius: cornerRadius))
+            .glassEffect(.regular.tint(.clear), in: .rect(cornerRadius: cornerRadius))
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
-        .hoverHighlight(in: .rect(cornerRadius: 6))
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isHovering = hovering
+            }
+        }
+        .help(equationHelp)
         .contextMenu { menuItems }
         .confirmationDialog(
             "Delete \(reserve.name)?",
@@ -81,6 +88,59 @@ struct ReserveCardView: View {
         } message: {
             Text("Any funds held in this reserve will be released.")
         }
+    }
+
+    // One-line tagline. Description is mandatory for new edits, but older reserves
+    // may still have none, so a placeholder keeps every card the same height.
+    @ViewBuilder private var description: some View {
+        let tagline = reserve.tagline.trimmingCharacters(in: .whitespacesAndNewlines)
+        Group {
+            if tagline.isEmpty {
+                Text("No description")
+                    .italic()
+                    .foregroundStyle(.tertiary)
+            } else {
+                Text(tagline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.caption)
+        .lineLimit(1)
+        .truncationMode(.tail)
+    }
+
+    // The progress bar, swapped on hover for the colour-coded equation
+    // (used + held) / target. Fixed height so the card never resizes on hover.
+    private var progressSlot: some View {
+        ZStack {
+            ReserveProgressBar(filledFraction: filledFraction, usedFraction: usedFraction)
+                .opacity(isHovering ? 0 : 1)
+
+            equation
+                .opacity(isHovering ? 1 : 0)
+        }
+        .frame(height: 16)
+    }
+
+    // Colour carries the meaning (spent = used, reserved = held), matching the bar segments.
+    private var equation: some View {
+        let usedText = Text(usedAmount, format: .cadWhole).foregroundStyle(Color.spent)
+        let heldText = Text(heldAmount, format: .cadWhole).foregroundStyle(Color.reserved)
+        return Text("(\(usedText) + \(heldText)) / \(reserve.target, format: .cadWhole)")
+            .font(.caption)
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity)
+    }
+
+    // Worded version of `equation` for the tooltip.
+    private var equationHelp: String {
+        let used = usedAmount.formatted(.cadWhole)
+        let held = heldAmount.formatted(.cadWhole)
+        let target = reserve.target.formatted(.cadWhole)
+        return "(\(used) used + \(held) held) / \(target) target"
     }
 
     // The reserve's actions, shared by the tap-to-open Menu and the right-click
@@ -99,56 +159,28 @@ struct ReserveCardView: View {
             Label("Delete", systemImage: "trash")
         }
     }
-
-    // Trailing figures in fixed-width, trailing-aligned columns so they line up
-    // down the list: used (spent, teal — always shown, even at 0), held
-    // (still reserved), then the target led by a bullseye.
-    private var amounts: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(usedAmount, format: .number.precision(.fractionLength(2)))
-                .foregroundStyle(Color.spent)
-                .frame(width: 80, alignment: .trailing)
-
-            Text(heldAmount, format: .number.precision(.fractionLength(2)))
-                .foregroundStyle(.primary)
-                .frame(width: 80, alignment: .trailing)
-
-            HStack(spacing: 4) {
-                Image(systemName: "target")
-                Text(reserve.target, format: .number.precision(.fractionLength(2)))
-            }
-            .foregroundStyle(.secondary)
-            .frame(width: 104, alignment: .trailing)
-        }
-        .font(.caption)
-        .monospacedDigit()
-        .lineLimit(1)
-    }
 }
 
-/// Circular twin of the old ReserveProgressBar: a leading "spent" (used)
-/// arc and a "reserved" (held) arc over a faint empty track. `usedFraction`
-/// is expected to be ≤ `filledFraction`; both are fractions of the full circle.
-struct ReserveProgressRing: View {
+/// Horizontal 3-segment bar over a faint track: a leading "spent" (used)
+/// segment, then "reserved" (held), then the empty remainder up to the target.
+/// `usedFraction` is expected to be ≤ `filledFraction`; both are fractions of target.
+private struct ReserveProgressBar: View {
     let filledFraction: Double      // held + used, over target
     let usedFraction: Double        // used, over target
-    var lineWidth: CGFloat = 5
+    var height: CGFloat = 6
 
     var body: some View {
         let filled = min(max(filledFraction, 0), 1)
         let used = min(max(usedFraction, 0), 1)
-        ZStack {
-            Circle()                                   // empty track
-                .stroke(Color.reserved.opacity(0.15), lineWidth: lineWidth)
-            Circle().trim(from: 0, to: filled)         // held + used
-                .stroke(Color.reserved,
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
-            Circle().trim(from: 0, to: used)           // used (spent)
-                .stroke(Color.spent,
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Color.reserved.opacity(0.15)                       // empty track
+                Color.reserved.frame(width: proxy.size.width * filled)  // held + used
+                Color.spent.frame(width: proxy.size.width * used)       // used (spent)
+            }
         }
-        .rotationEffect(.degrees(-90))                 // start at 12 o'clock
-        .frame(width: 12, height: 12)
+        .frame(height: height)
+        .clipShape(Capsule())
     }
 }
 
@@ -190,7 +222,7 @@ private func previewViewModel(
         tagline: "Costa Rica · December"
     )
     return ReserveCardView(reserve: reserve)
-        .frame(width: 600)
+        .frame(width: 215)
         .padding(20)
         .environment(previewViewModel(reserve: reserve, allocation: 1240, use: 300))
 }
@@ -204,7 +236,7 @@ private func previewViewModel(
         tagline: "Spring rebuild"
     )
     return ReserveCardView(reserve: reserve)
-        .frame(width: 600)
+        .frame(width: 215)
         .padding(20)
         .environment(previewViewModel(reserve: reserve, allocation: 850))
 }

@@ -1,7 +1,9 @@
 import SwiftUI
 
+/// The "My Reserves" grid: one `ReserveCardView` tile per reserve, three columns,
+/// scrolling vertically inside its section. Row spacing is measured so exactly
+/// `rowsPerPage` rows fill the visible height; further rows scroll.
 struct ReservesContent: View {
-    var onAdd: () -> Void
     var onSelect: (Reserve) -> Void
     var onMoneyAction: (Reserve, ReserveMoneyAction) -> Void
     var onDelete: (Reserve) -> Void
@@ -38,77 +40,51 @@ struct ReservesContent: View {
             .map(\.reserve)
     }
 
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    private let rowsPerPage = 4
+    private let minRowSpacing: CGFloat = 12
+
+    /// Measured heights of the scroll viewport and one card (all cards share a height).
+    @State private var viewportHeight: CGFloat = 0
+    @State private var cardHeight: CGFloat = 0
+
+    /// Vertical gap that makes `rowsPerPage` rows end exactly at the viewport's bottom edge,
+    /// never tighter than `minRowSpacing`. Falls back to the minimum until both are measured.
+    private var rowSpacing: CGFloat {
+        guard viewportHeight > 0, cardHeight > 0 else { return minRowSpacing }
+        let fitted = (viewportHeight - CGFloat(rowsPerPage) * cardHeight) / CGFloat(rowsPerPage - 1)
+        return max(minRowSpacing, fitted)
+    }
+
     var body: some View {
-        VStack(spacing: 8){
-            ReservesHeaderRow()
-            Divider()
-            AddReserveRow(onTap: onAdd)
-            ScrollView{
-                ForEach(sortedReserves) { reserve in
-                    ReserveCardView(
-                        reserve: reserve,
-                        onEdit: { onSelect(reserve) },
-                        onActivity: { onActivity(reserve) },
-                        onDelete: { onDelete(reserve) },
-                        canAddOrRelease: canAddOrRelease,
-                        canUse: canUse,
-                        onMoneyAction: { onMoneyAction(reserve, $0) }
-                    )
+        if viewModel.reserves.isEmpty {
+            Text("No reserves yet — click + to add one.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: rowSpacing) {
+                    ForEach(sortedReserves) { reserve in
+                        ReserveCardView(
+                            reserve: reserve,
+                            onEdit: { onSelect(reserve) },
+                            onActivity: { onActivity(reserve) },
+                            onDelete: { onDelete(reserve) },
+                            canAddOrRelease: canAddOrRelease,
+                            canUse: canUse,
+                            onMoneyAction: { onMoneyAction(reserve, $0) }
+                        )
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                            cardHeight = $0
+                        }
+                    }
                 }
             }
-        }
-    }
-}
-
-// MARK: - Header Row
-
-/// Column labels above the list. Mirrors `ReserveCardView`'s leading geometry
-/// (emoji + ring slots) and trailing column widths so the numeric columns line
-/// up exactly with each card's Used/Held/Target figures.
-private struct ReservesHeaderRow: View {
-    var body: some View {
-        HStack(spacing: 12) {
-            // "Reserve" spans the emoji + ring + name area, left-justified from the edge.
-            header("Reserve").frame(maxWidth: .infinity, alignment: .leading)
-            header("Used").frame(width: 80, alignment: .trailing)
-            header("Reserved").frame(width: 80, alignment: .trailing)
-            header("Target").frame(width: 104, alignment: .trailing)
-        }
-        .padding(.horizontal, 4)
-    }
-
-    private func header(_ text: String) -> some View {
-        Text(text.uppercased())
-            .font(.caption2.weight(.semibold))
-            .tracking(0.5)
-            .foregroundStyle(.secondary)
-    }
-}
-
-// MARK: - Add Row
-
-private struct AddReserveRow: View {
-    var onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 8) {
-                Image(systemName: "plus")
-                    .font(.callout.weight(.semibold))
-                Text("Add New Reserve")
-                    .font(.callout.weight(.medium))
-                Spacer(minLength: 0)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                viewportHeight = $0
             }
-            .foregroundStyle(.secondary)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .background(Color.gray.opacity(0.1), in: .rect(cornerRadius: 6))
-        .hoverHighlight(in: .rect(cornerRadius: 6))
-        .frame(height: 30)
     }
 }
 
@@ -125,10 +101,10 @@ private struct AddReserveRow: View {
     vm.upsertReserve(Reserve(name: "New Bike", emoji: "🚲", colorHex: "", target: 850, tagline: "Spring rebuild"))
     vm.upsertReserve(Reserve(name: "Emergency Fund", emoji: "🛡️", colorHex: "", target: 10_000, tagline: ""))
 
-    return SectionContainer(title: "Reserves") {
-        ReservesContent(onAdd: {}, onSelect: { _ in }, onMoneyAction: { _, _ in }, onDelete: { _ in }, onActivity: { _ in })
+    return SectionContainer(title: "My Reserves", style: .sunken) {
+        ReservesContent(onSelect: { _ in }, onMoneyAction: { _, _ in }, onDelete: { _ in }, onActivity: { _ in })
     }
-    .frame(width: 720)
+    .frame(width: 708)
     .padding(20)
     .environment(vm)
 }

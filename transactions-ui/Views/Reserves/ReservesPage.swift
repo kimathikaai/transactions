@@ -17,46 +17,66 @@ struct ReservesPage: View {
 
     /// Shared content height of the Reservoir and Sources cards; Sources scrolls if taller.
     private let reservoirCardHeight: CGFloat = 100
-    private let reservoirCardWidth: CGFloat = 240
+    /// Shared width of the right-hand column (Reservoir above, Activity below).
+    private let sideColumnWidth: CGFloat = 240
+
+    /// Caption-sized so the My Reserves title row stays level with Activity's.
+    private var addReserveButton: some View {
+        Button {
+            showCreate = true
+        } label: {
+            Image(systemName: "plus")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+                .contentShape(.rect(cornerRadius: 4))
+                .hoverHighlight(in: .rect(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .help("New Reserve")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            // Reservoir (fixed width) and Sources (fills the rest) side by side, no rail gutter.
+            // Sources (fills the rest) beside Reservoir in the shared right column, no rail gutter.
             HStack(alignment: .top, spacing: 12) {
-                SectionContainer(title: "Reservoir") {
-                    SummaryContent(summary: viewModel.reservoirSummary)
-                        .frame(height: reservoirCardHeight)
-                }
-                .frame(width: reservoirCardWidth)
-
                 SectionContainer(title: "Sources") {
                     ScrollView {
                         SourcesContent(sources: viewModel.perSourceSummary)
                     }
                     .frame(height: reservoirCardHeight)
                 }
+
+                SectionContainer(title: "Reservoir") {
+                    SummaryContent(summary: viewModel.reservoirSummary)
+                        .frame(height: reservoirCardHeight)
+                }
+                .frame(width: sideColumnWidth)
             }
 
-            TabbedSection {
-                SectionTab("Reserves", symbol: "tray.2", help: "Reserves — savings goals") {
+            // My Reserves grid (sunken tray, fills the rest) beside a fixed-width Activity column.
+            HStack(alignment: .top, spacing: 12) {
+                SectionContainer(title: "My Reserves", style: .sunken) {
+                    addReserveButton
+                } content: {
                     ReservesContent(
-                        onAdd: { showCreate = true },
                         onSelect: { selectedReserve = $0 },
                         onMoneyAction: { moneyRequest = ReserveMoneyRequest(reserve: $0, action: $1) },
                         onDelete: { viewModel.deleteReserve(id: $0.id) },
                         onActivity: { activityReserve = $0 }
                     )
+                    .frame(maxHeight: .infinity, alignment: .top)
                 }
-                SectionTab(
-                    "Activity",
-                    symbol: "list.bullet",
-                    help: "Activity — allocation, release, and use history"
-                ) {
+
+                SectionContainer(title: "Activity") {
                     ActivityContent(
                         rows: viewModel.reserveActivity,
-                        onDelete: { viewModel.deleteReserveEvent(id: $0) }
+                        onDelete: { viewModel.deleteReserveEvent(id: $0) },
+                        compact: true
                     )
+                    .frame(maxHeight: .infinity, alignment: .top)
                 }
+                .frame(width: sideColumnWidth)
             }
             .frame(maxHeight: .infinity)
         }

@@ -32,8 +32,12 @@ struct ReserveEditSheet: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // Both name and target are mandatory; Save stays disabled until both are provided.
-    private var canSave: Bool { !trimmedName.isEmpty && target > 0 }
+    private var trimmedTagline: String {
+        tagline.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    // Name, description, and target are mandatory; Save stays disabled until all are provided.
+    private var canSave: Bool { !trimmedName.isEmpty && !trimmedTagline.isEmpty && target > 0 }
 
     // Sources with an active (non-zero) allocation to this reserve, largest first.
     // Empty in create mode — a reserve that doesn't exist yet has no reservations.
@@ -168,7 +172,7 @@ struct ReserveEditSheet: View {
             }
 
             if !canSave {
-                Text("Name and target required")
+                Text("Name, description, and target required")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -187,7 +191,6 @@ struct ReserveEditSheet: View {
     }
 
     private func save() {
-        let trimmedTagline = tagline.trimmingCharacters(in: .whitespacesAndNewlines)
         if var existing = reserve {
             existing.name = trimmedName
             existing.emoji = emoji
