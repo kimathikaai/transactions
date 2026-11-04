@@ -7,34 +7,44 @@ struct AccountsPage: View {
     @State private var managingAccount: Account?
     @State private var isCreating = false
 
+    /// Matches the Transactions and Reserves top rows (`ReservesPage.reservoirCardHeight`).
+    private let netWorthCardHeight: CGFloat = 98
+
+    /// Caption-sized so the Accounts title row stays the same height as Net Worth's.
+    private var addAccountButton: some View {
+        Button {
+            isCreating = true
+        } label: {
+            Image(systemName: "plus")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+                .contentShape(.rect(cornerRadius: 4))
+                .hoverHighlight(in: .rect(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .help("New Account")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-                TabbedSection {
-                    SectionTab("Accounts", symbol: "creditcard") {
-                        AccountsContent(
-                            onAdd: { isCreating = true },
-                            onSelect: { editingAccount = $0 },
-                            onManageTransactions: { managingAccount = $0 }
-                        )
-                        .frame(maxHeight: .infinity)
-                    }
-                    SectionTab("Trends", symbol: "chart.line.uptrend.xyaxis") {
-                        VStack(alignment: .leading, spacing: 32) {
-                            captionedChart("Net Worth") {
-                                NetWorthChart(data: viewModel.monthlyMetrics)
-                                    .frame(height: 160)
-                            }
-                            captionedChart("Savings Rate") {
-                                MonthlySavingsRateBarChart(data: viewModel.monthlyMetrics)
-                                    .frame(height: 80)
-                            }
-                        }
-                    }
-                }
-                // Pin the card to the top so the shorter Trends tab doesn't float mid-page.
-                .frame(maxHeight: .infinity, alignment: .top)
+            SectionContainer(title: "Net Worth") {
+                NetWorthChart(data: viewModel.monthlyMetrics)
+                    .frame(height: netWorthCardHeight)
             }
-            .padding(20)
+
+            SectionContainer(title: "Accounts") {
+                addAccountButton
+            } content: {
+                AccountsContent(
+                    onSelect: { editingAccount = $0 },
+                    onManageTransactions: { managingAccount = $0 }
+                )
+                .frame(maxHeight: .infinity)
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+        .padding(20)
         .sheet(isPresented: $isCreating) {
             AccountEditSheet(account: nil)
         }
@@ -43,20 +53,6 @@ struct AccountsPage: View {
         }
         .sheet(item: $managingAccount) { account in
             ManageTransactionsSheet(account: account)
-        }
-    }
-
-    /// A small secondary caption above a full-width chart, labelling it within the Trends tab.
-    private func captionedChart<ChartContent: View>(
-        _ title: String,
-        @ViewBuilder chart: () -> ChartContent
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            chart()
-                .frame(maxWidth: .infinity)
         }
     }
 }

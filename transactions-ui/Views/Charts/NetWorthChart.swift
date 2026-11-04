@@ -1,9 +1,14 @@
 import Charts
 import SwiftUI
 
+/// Every month's net worth as a plain line, flush to both edges, with a zero rule as the
+/// only axis. The tooltip sits over the plot's top-left corner. Tapping pins the hovered
+/// month; while pinned, any tap unpins.
 struct NetWorthChart: View {
     @Environment(AppViewModel.self) private var vm
     let data: [MonthlyMetric]
+
+    @State private var hoverSelection: Date?
 
     private func snapshot(for month: Date) -> MonthlyMetric? {
         data.first { $0.month == month }
@@ -14,79 +19,117 @@ struct NetWorthChart: View {
         return data[index].netWorth - data[index - 1].netWorth
     }
 
+    /// First to last month with no padding, so the latest month sits on the right edge.
+    /// Nil with fewer than two months (a zero-width domain), leaving the scale automatic.
+    private var xDomain: ClosedRange<Date>? {
+        guard let first = data.first?.month, let last = data.last?.month, first < last else { return nil }
+        return first...last
+    }
+
+    /// Always includes zero so the zero rule is visible as the axis.
     private var yDomain: ClosedRange<Double> {
         guard let minVal = data.map(\.netWorth).min(),
               let maxVal = data.map(\.netWorth).max() else {
-            return 0...0
+            return 0...1
         }
-        let floor = minVal - 0.05 * abs(minVal)
-        let ceiling = maxVal + 0.05 * abs(maxVal)
-        return floor...ceiling
+        let floor = min(0, minVal - 0.05 * abs(minVal))
+        let ceiling = max(0, maxVal + 0.05 * abs(maxVal))
+        return floor < ceiling ? floor...ceiling : floor...(floor + 1)
     }
 
     var body: some View {
-        let displayedMonth = vm.displayedMonth ?? .now
+        withXDomain(chart)
+            .chartXSelection(value: $hoverSelection)
+            .onChange(of: hoverSelection) { _, newValue in
+                vm.publishHover(newValue)
+            }
+            .onTapGesture(perform: handleTap)
+            .overlay(alignment: .topLeading) {
+                if let month = vm.displayedMonth {
+                    tooltipView(for: month)
+                        .allowsHitTesting(false)
+                }
+            }
+    }
 
+    private var chart: some View {
         Chart {
-            ForEach(data) { snapshot in
-                AreaMark(
-                    x: .value("Month", snapshot.month),
-                    y: .value("Net Worth", snapshot.netWorth)
-                )
-                .foregroundStyle(
-                    .linearGradient(
-                        colors: [.teal.opacity(0.6), .teal.opacity(0.1)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .interpolationMethod(.catmullRom)
+            RuleMark(y: .value("Zero", 0))
+                .foregroundStyle(Color.gray.opacity(0.3))
 
+            if let month = vm.displayedMonth {
+                if vm.pinnedMonth != nil {
+                    cursorRule(at: month)
+                        .annotation(position: .overlay, alignment: .top, spacing: 0) {
+                            Image(systemName: "pin.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                } else {
+                    cursorRule(at: month)
+                }
+            }
+
+            ForEach(data) { snapshot in
                 LineMark(
                     x: .value("Month", snapshot.month),
                     y: .value("Net Worth", snapshot.netWorth)
                 )
                 .foregroundStyle(.teal)
                 .lineStyle(StrokeStyle(lineWidth: 2))
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.linear)
             }
 
-            if let last = data.last {
+            if let month = vm.displayedMonth, let snap = snapshot(for: month) {
                 PointMark(
-                    x: .value("Month", last.month),
-                    y: .value("Net Worth", last.netWorth)
+                    x: .value("Month", month),
+                    y: .value("Net Worth", snap.netWorth)
                 )
                 .foregroundStyle(.teal)
                 .symbolSize(30)
             }
-
-            RuleMark(y: .value("Zero", 0))
-                .foregroundStyle(Color.gray.opacity(0.3))
-                .zIndex(-1)
-
-            RuleMark(x: .value("Selected", displayedMonth))
-                .foregroundStyle(Color.gray.opacity(0.3))
-                .zIndex(-1)
         }
         .chartLegend(.hidden)
-        .chartYAxis {
-            AxisMarks { _ in }
-        }
-        .chartXAxis {
-            AxisMarks { _ in }
-        }
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
         .chartYScale(domain: yDomain)
-        .frame(maxHeight: .infinity)
-        .syncMonthlyAxis()
-        .monthlyTooltip(width: 170) { month in
-            tooltipView(for: month)
+    }
+
+    private func cursorRule(at month: Date) -> some ChartContent {
+        RuleMark(x: .value("Selected", month))
+            .foregroundStyle(Color.gray.opacity(0.3))
+            .lineStyle(StrokeStyle(lineWidth: 2))
+    }
+
+    @ViewBuilder
+    private func withXDomain(_ chart: some View) -> some View {
+        if let xDomain {
+            chart.chartXScale(domain: xDomain)
+        } else {
+            chart
+        }
+    }
+
+    /// Unlike the shared `togglePin`, a tap while pinned always unpins, wherever it lands.
+    private func handleTap() {
+        if vm.pinnedMonth != nil {
+            vm.pinnedMonth = nil
+        } else if let month = vm.hoveredMonth {
+            vm.togglePin(month)
         }
     }
 
     private func tooltipView(for month: Date) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(month, format: .dateTime.year().month(.abbreviated))
-                .font(.caption.bold())
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Text(month, format: .dateTime.year().month(.abbreviated))
+                    .font(.caption.bold())
+                if vm.pinnedMonth != nil {
+                    Image(systemName: "pin.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if let snap = snapshot(for: month) {
                 HStack(spacing: 4) {
@@ -103,27 +146,7 @@ struct NetWorthChart: View {
                         .foregroundStyle(change >= 0 ? Color.income : Color.expense)
                     }
                 }
-
-                Divider()
-                ScrollView {
-                    LazyVStack(spacing: 4) {
-                        ForEach(vm.accounts) { account in
-                            if let balance = snap.balances[account.id] {
-                                HStack {
-                                    Text(account.name)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                    Spacer()
-                                    Text(balance, format: .cadWhole)
-                                        .font(.caption2.monospacedDigit())
-                                }
-                            }
-                        }
-                    }.scrollTargetLayout()
-                }.scrollTargetBehavior(.viewAligned)
-
             }
         }
-        .padding(8)
     }
 }
