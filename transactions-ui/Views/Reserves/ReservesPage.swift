@@ -42,14 +42,14 @@ struct ReservesPage: View {
         VStack(alignment: .leading, spacing: 20) {
             // Sources (fills the rest) beside Reservoir in the shared right column, no rail gutter.
             HStack(alignment: .top, spacing: 12) {
-                SectionContainer(title: "Sources") {
+                SectionContainer(title: "Sources", style: .outlined) {
                     ScrollView {
                         SourcesContent(sources: viewModel.perSourceSummary)
                     }
                     .frame(height: reservoirCardHeight)
                 }
 
-                SectionContainer(title: "Reservoir") {
+                SectionContainer(title: "Reservoir", style: .outlined) {
                     SummaryContent(summary: viewModel.reservoirSummary)
                         .frame(height: reservoirCardHeight)
                 }

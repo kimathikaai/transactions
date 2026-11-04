@@ -4,7 +4,8 @@ import SwiftUI
 enum SectionContainerStyle {
     /// Thick material + glass: the default card that sits above the page.
     case raised
-    /// No fill, just a border in the title's `.secondary` style: a frame that holds raised tiles.
+    /// No fill, just a border in the title's `.secondary` style at half opacity: a frame
+    /// that holds raised tiles.
     case outlined
 }
 
@@ -50,7 +51,7 @@ struct SectionContainer<Accessory: View, Content: View>: View {
             view
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .strokeBorder(.secondary, lineWidth: 1)
+                        .strokeBorder(.secondary.opacity(0.5), lineWidth: 1)
                 )
         }
     }
