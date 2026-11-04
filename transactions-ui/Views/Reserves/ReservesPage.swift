@@ -16,7 +16,9 @@ struct ReservesPage: View {
     }
 
     /// Shared content height of the Reservoir and Sources cards; Sources scrolls if taller.
-    private let reservoirCardHeight: CGFloat = 100
+    /// Matches the Transactions tab's breakdown cards (`CategoryBreakdownCard`: 22pt bar +
+    /// 10pt spacing + 66pt legend viewport) so both pages' top rows are the same height.
+    private let reservoirCardHeight: CGFloat = 98
     /// Shared width of the right-hand column (Reservoir above, Activity below).
     private let sideColumnWidth: CGFloat = 240
 
@@ -54,9 +56,9 @@ struct ReservesPage: View {
                 .frame(width: sideColumnWidth)
             }
 
-            // My Reserves grid (sunken tray, fills the rest) beside a fixed-width Activity column.
+            // My Reserves grid (outlined, fills the rest) beside a fixed-width Activity column.
             HStack(alignment: .top, spacing: 12) {
-                SectionContainer(title: "My Reserves", style: .sunken) {
+                SectionContainer(title: "My Reserves", style: .outlined) {
                     addReserveButton
                 } content: {
                     ReservesContent(

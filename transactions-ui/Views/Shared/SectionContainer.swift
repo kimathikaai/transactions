@@ -4,8 +4,8 @@ import SwiftUI
 enum SectionContainerStyle {
     /// Thick material + glass: the default card that sits above the page.
     case raised
-    /// Darker fill with an inner shadow and no glass: a tray that holds raised tiles.
-    case sunken
+    /// No fill, just a border in the title's `.secondary` style: a frame that holds raised tiles.
+    case outlined
 }
 
 struct SectionContainer<Accessory: View, Content: View>: View {
@@ -46,11 +46,11 @@ struct SectionContainer<Accessory: View, Content: View>: View {
                     .regular.tint(.clear),
                     in: .rect(cornerRadius: cornerRadius)
                 )
-        case .sunken:
+        case .outlined:
             view
-                .background(
+                .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .fill(Color.black.opacity(0.2).shadow(.inner(radius: 3)))
+                        .strokeBorder(.secondary, lineWidth: 1)
                 )
         }
     }

@@ -101,7 +101,7 @@ struct ReservesContent: View {
     vm.upsertReserve(Reserve(name: "New Bike", emoji: "🚲", colorHex: "", target: 850, tagline: "Spring rebuild"))
     vm.upsertReserve(Reserve(name: "Emergency Fund", emoji: "🛡️", colorHex: "", target: 10_000, tagline: ""))
 
-    return SectionContainer(title: "My Reserves", style: .sunken) {
+    return SectionContainer(title: "My Reserves", style: .outlined) {
         ReservesContent(onSelect: { _ in }, onMoneyAction: { _, _ in }, onDelete: { _ in }, onActivity: { _ in })
     }
     .frame(width: 708)
