@@ -71,6 +71,20 @@ struct NetWorthChart: View {
             }
 
             ForEach(data) { snapshot in
+                // Fills down to the zero rule (AreaMark's default baseline).
+                AreaMark(
+                    x: .value("Month", snapshot.month),
+                    y: .value("Net Worth", snapshot.netWorth)
+                )
+                .foregroundStyle(
+                    .linearGradient(
+                        colors: [.teal.opacity(0.6), .teal.opacity(0.1)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .interpolationMethod(.linear)
+
                 LineMark(
                     x: .value("Month", snapshot.month),
                     y: .value("Net Worth", snapshot.netWorth)
@@ -119,6 +133,16 @@ struct NetWorthChart: View {
         }
     }
 
+    /// One interpolated Text, not an HStack of Image + Text: that HStack measured the
+    /// monospaced-digit amount narrower than it drew, truncating it to "$3,8…".
+    private func changeText(_ change: Double) -> some View {
+        let arrow = Text(Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right"))
+            .font(.system(size: 8))
+        return Text("\(arrow)\(abs(change), format: .cadWhole)")
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(change >= 0 ? Color.income : Color.expense)
+    }
+
     private func tooltipView(for month: Date) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
@@ -137,13 +161,7 @@ struct NetWorthChart: View {
                         .font(.caption.bold().monospacedDigit())
                         .foregroundStyle(.teal)
                     if let change = monthOverMonthChange(for: month) {
-                        HStack(spacing: 1) {
-                            Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
-                                .font(.system(size: 8))
-                            Text(abs(change), format: .cadWhole)
-                                .font(.caption2.monospacedDigit())
-                        }
-                        .foregroundStyle(change >= 0 ? Color.income : Color.expense)
+                        changeText(change)
                     }
                 }
             }
