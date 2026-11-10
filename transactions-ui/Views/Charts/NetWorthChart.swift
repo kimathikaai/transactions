@@ -83,7 +83,7 @@ struct NetWorthChart: View {
                         endPoint: .bottom
                     )
                 )
-                .interpolationMethod(.linear)
+                .interpolationMethod(.monotone)
 
                 LineMark(
                     x: .value("Month", snapshot.month),
@@ -91,7 +91,7 @@ struct NetWorthChart: View {
                 )
                 .foregroundStyle(.teal)
                 .lineStyle(StrokeStyle(lineWidth: 2))
-                .interpolationMethod(.linear)
+                .interpolationMethod(.monotone)
             }
 
             if let month = vm.displayedMonth, let snap = snapshot(for: month) {
