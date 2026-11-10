@@ -19,6 +19,13 @@ enum TransactionType: String, CaseIterable, Identifiable, Comparable, Codable, S
     }
 }
 
+/// Where a transaction's effective category comes from.
+enum CategorySource {
+    case rule          // the import-time regex match
+    case overridden    // an explicit category in the user's edit
+    case uncategorized
+}
+
 /// Value-type transaction. Not persisted directly — every launch, the
 /// `AppViewModel` rebuilds `[Transaction]` from the per-account CSVs via
 /// `BankCsvParser` + `ImportPipeline`. User edits live in `edits.json`
@@ -70,14 +77,24 @@ struct Transaction: Identifiable, Equatable, Hashable {
         self.edit = edit
     }
 
+    /// The edit's category when it sets one; otherwise the rules' (import-time)
+    /// pick, so a notes-only edit keeps following future pattern changes. A type
+    /// override with no category is Uncategorized: the rules matched against the
+    /// parsed type, so their pick may not fit the new one.
     var effectiveCategory: CategoryID? {
-        if let edit { return edit.category }
+        if let edit, edit.overridesClassification { return edit.category }
         return category
     }
 
     var effectiveSubcategory: SubcategoryID? {
-        if let edit { return edit.subcategory }
+        if let edit, edit.overridesClassification { return edit.subcategory }
         return subcategory
+    }
+
+    /// Where the effective category comes from — drives the edit modal's chip.
+    var categorySource: CategorySource {
+        if effectiveCategory == nil { return .uncategorized }
+        return edit?.category != nil ? .overridden : .rule
     }
 
     var effectiveNotes: String? {

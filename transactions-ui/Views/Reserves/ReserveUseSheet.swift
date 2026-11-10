@@ -7,26 +7,17 @@ import SwiftUI
 /// linked transaction are chosen independently — the transaction may live on any
 /// account (e.g. saved in Savings, spent on a credit card).
 ///
-/// The sheet serves two entry points via `Seed`:
-///   • `.fromReserve` — opened from a reserve card. The reserve is fixed; the
-///     user picks the transaction (and source).
-///   • `.fromTransaction` — opened from a transactions-list row. The transaction
-///     is fixed; the user picks the reserve (and source).
+/// Opened from a reserve card: the reserve is fixed and the user picks the
+/// transaction (and source). The transactions-list side lives in the transaction
+/// modal's Reserve section (`ReserveUseSection`).
 struct ReserveUseSheet: View {
-    /// Which field is pre-selected (fixed) vs. picked, per entry point.
-    enum Seed {
-        case fromReserve(Reserve)         // reserve fixed, pick transaction
-        case fromTransaction(Transaction) // transaction fixed, pick reserve
-    }
-
-    let seed: Seed
+    let reserve: Reserve
 
     @Environment(AppViewModel.self) private var viewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedReserveID: UUID?   // used only in .fromTransaction
     @State private var selectedSourceID: UUID?
-    @State private var selectedTxHash: String?    // used only in .fromReserve
+    @State private var selectedTxHash: String?
     @State private var note: String = ""
     @State private var errorMessage: String?
     @State private var showTxPicker = false
@@ -42,13 +33,6 @@ struct ReserveUseSheet: View {
         .padding(20)
         .frame(minWidth: 460)
         .presentationBackground(.clear)
-        .onAppear {
-            // Convenience: from a transaction there's no source pre-picked, so
-            // auto-select when there's only one candidate.
-            if case .fromTransaction = seed, viewModel.reservoirSources.count == 1 {
-                selectedSourceID = viewModel.reservoirSources.first?.id
-            }
-        }
         .sheet(isPresented: $showTxPicker) {
             ExpenseTransactionPicker(
                 transactions: viewModel.expenseTransactions,
@@ -61,16 +45,6 @@ struct ReserveUseSheet: View {
 
     // MARK: - Resolved selections
 
-    /// The target reserve — fixed by the seed, or resolved from the picker.
-    private var reserve: Reserve? {
-        switch seed {
-        case .fromReserve(let r): return r
-        case .fromTransaction:
-            guard let id = selectedReserveID else { return nil }
-            return viewModel.reserves.first { $0.id == id }
-        }
-    }
-
     private var source: Account? {
         guard let id = selectedSourceID else { return nil }
         return viewModel.reservoirSources.first { $0.id == id }
@@ -78,49 +52,27 @@ struct ReserveUseSheet: View {
 
     /// The linked expense snapshot (for display), when one is chosen.
     private var selectedTx: TransactionSnapshot? {
-        guard let hash = txHash else { return nil }
+        guard let hash = selectedTxHash else { return nil }
         return viewModel.expenseTransactions.first { $0.id == hash }
     }
 
-    /// The contentHash of the transaction to link — fixed by the seed, or the
-    /// user's picked transaction.
-    private var txHash: String? {
-        switch seed {
-        case .fromReserve: return selectedTxHash
-        case .fromTransaction(let tx): return tx.contentHash
-        }
-    }
-
-    /// True once a transaction is chosen (always true in `.fromTransaction`).
-    private var hasTransaction: Bool { txHash != nil }
+    /// True once a transaction is chosen.
+    private var hasTransaction: Bool { selectedTxHash != nil }
 
     /// The expense amount to use — fixed to the linked transaction.
     private var useAmount: Double {
-        switch seed {
-        case .fromReserve:
-            return selectedTx.map { abs($0.effectiveAmount) } ?? 0
-        case .fromTransaction(let tx):
-            return abs(tx.effectiveAmount)
-        }
-    }
-
-    /// The linked transaction's display details.
-    private var txDetails: String? {
-        switch seed {
-        case .fromReserve: return selectedTx?.details
-        case .fromTransaction(let tx): return tx.details
-        }
+        selectedTx.map { abs($0.effectiveAmount) } ?? 0
     }
 
     /// How much the chosen reserve holds from the chosen source (the headroom),
     /// or nil until both are chosen.
     private var available: Double? {
-        guard let reserve, let source else { return nil }
+        guard let source else { return nil }
         return amount(reserveID: reserve.id, accountID: source.id, in: viewModel.reservations)
     }
 
     private var isAlreadyLinked: Bool {
-        guard let hash = txHash else { return false }
+        guard let hash = selectedTxHash else { return false }
         return viewModel.usedTransactionIDs.contains(hash)
     }
 
@@ -135,7 +87,7 @@ struct ReserveUseSheet: View {
     }
 
     private var canSubmit: Bool {
-        guard reserve != nil, source != nil, hasTransaction,
+        guard source != nil, hasTransaction,
               let available, useAmount > 0 else { return false }
         return !isAlreadyLinked && useAmount <= available
     }
@@ -162,31 +114,13 @@ struct ReserveUseSheet: View {
             .foregroundStyle(accent)
     }
 
-    // Fixed reserve label (from a card) or a reserve picker (from a transaction).
-    @ViewBuilder
+    // The fixed reserve this sheet was opened from.
     private var reserveField: some View {
-        switch seed {
-        case .fromReserve(let r):
-            Text("\(r.emoji) \(r.name)")
-                .font(.callout)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity)
-        case .fromTransaction:
-            reservePicker
-        }
-    }
-
-    private var reservePicker: some View {
-        Picker("Select Reserve", selection: $selectedReserveID) {
-            Text("Select Reserve").tag(UUID?.none)
-            ForEach(viewModel.reserves, id: \.id) { r in
-                Text("\(r.emoji) \(r.name)").tag(UUID?.some(r.id))
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .frame(maxWidth: .infinity)
+        Text("\(reserve.emoji) \(reserve.name)")
+            .font(.callout)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity)
     }
 
     private var sourcePicker: some View {
@@ -201,7 +135,7 @@ struct ReserveUseSheet: View {
         .frame(maxWidth: .infinity)
     }
 
-    // Transaction field (fixed or pickable) + read-only amount + headroom caption + note.
+    // Transaction picker + read-only amount + headroom caption + note.
     private var transactionCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             transactionField
@@ -226,51 +160,35 @@ struct ReserveUseSheet: View {
         )
     }
 
-    // Tappable picker button (.fromReserve) or a read-only row (.fromTransaction).
-    @ViewBuilder
+    // Tappable button that opens the expense picker.
     private var transactionField: some View {
-        switch seed {
-        case .fromReserve:
-            Button {
-                showTxPicker = true
-            } label: {
-                HStack {
-                    if let details = txDetails {
-                        Text(details)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .foregroundStyle(.primary)
-                    } else {
-                        Text("Select transaction")
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 8)
-                    if hasTransaction {
-                        Text(useAmount.formatted(.cad))
-                            .monospacedDigit()
-                            .foregroundStyle(.primary)
-                    }
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
+        Button {
+            showTxPicker = true
+        } label: {
+            HStack {
+                if let details = selectedTx?.details {
+                    Text(details)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(.primary)
+                } else {
+                    Text("Select transaction")
                         .foregroundStyle(.secondary)
                 }
-                .font(.callout)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        case .fromTransaction:
-            HStack {
-                Text(txDetails ?? "")
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundStyle(.primary)
                 Spacer(minLength: 8)
-                Text(useAmount.formatted(.cad))
-                    .monospacedDigit()
-                    .foregroundStyle(.primary)
+                if hasTransaction {
+                    Text(useAmount.formatted(.cad))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             .font(.callout)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
     private var footer: some View {
@@ -295,7 +213,7 @@ struct ReserveUseSheet: View {
     }
 
     private func submit() {
-        guard let reserve, let source, let hash = txHash else { return }
+        guard let source, let hash = selectedTxHash else { return }
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
         let noteValue = trimmed.isEmpty ? nil : trimmed
         do {
@@ -325,7 +243,7 @@ struct ReserveUseSheet: View {
         editStore: EditStore(fileURL: dir.appendingPathComponent("edits.json"))
     )
     vm.upsertReserve(reserve)
-    return ReserveUseSheet(seed: .fromReserve(reserve))
+    return ReserveUseSheet(reserve: reserve)
         .frame(width: 500)
         .padding(40)
         .environment(vm)

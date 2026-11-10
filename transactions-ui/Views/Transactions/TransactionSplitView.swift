@@ -16,17 +16,8 @@ struct TransactionSplitView: View {
     @State private var selectedCategory: CategoryID? = nil
     @State private var selectedSubcategory: SubcategoryID? = nil
     @State private var initialized = false
-    @State private var editingTransaction: Transaction?
-    /// Transaction whose category is being changed (dedicated recategorize modal).
-    @State private var changingCategoryFor: Transaction?
-    /// Expense whose reimbursement source is being picked (Modal 1).
-    @State private var reimbursingExpense: Transaction?
-    /// Linked expense whose reimbursement is being viewed/unlinked (Modal 2).
-    @State private var viewingReimbursementFor: Transaction?
-    /// Expense whose reserve funds are being used (pre-selected in ReserveUseSheet).
-    @State private var usingFundsFor: Transaction?
-    /// Already-used expense whose reserve link is being viewed/unlinked.
-    @State private var viewingUsageFor: Transaction?
+    /// The transaction open in the one-stop modal, and which section to land on.
+    @State private var detailRequest: TransactionDetailRequest?
     @State private var isExporterPresented = false
     @State private var exportDocument = TransactionsCSVDocument(csv: "")
     @State private var cachedTransactions: [TransactionSnapshot] = []
@@ -218,28 +209,8 @@ struct TransactionSplitView: View {
         }
         .onChange(of: sortField) { recomputeFilteredTransactions() }
         .onChange(of: sortAscending) { recomputeFilteredTransactions() }
-        .sheet(item: $editingTransaction) { tx in
-            TransactionEditView(transaction: tx)
-                .environment(viewModel)
-        }
-        .sheet(item: $changingCategoryFor) { tx in
-            ChangeCategorySheet(transaction: tx)
-                .environment(viewModel)
-        }
-        .sheet(item: $reimbursingExpense) { tx in
-            ReimburseExpenseSheet(expense: tx)
-                .environment(viewModel)
-        }
-        .sheet(item: $viewingReimbursementFor) { tx in
-            ViewReimbursementSheet(expense: tx)
-                .environment(viewModel)
-        }
-        .sheet(item: $usingFundsFor) { tx in
-            ReserveUseSheet(seed: .fromTransaction(tx))
-                .environment(viewModel)
-        }
-        .sheet(item: $viewingUsageFor) { tx in
-            ViewUsageSheet(expense: tx)
+        .sheet(item: $detailRequest) { request in
+            TransactionDetailSheet(request: request)
                 .environment(viewModel)
         }
         .fileExporter(
@@ -303,7 +274,7 @@ struct TransactionSplitView: View {
                     ForEach(cachedTransactions) { snap in
                         TransactionCard(
                             snapshot: snap,
-                            onCategoryTap: { changingCategoryFor = snap.transaction }
+                            onCategoryTap: { openDetail(snap, focus: .category) }
                         ) {
                             menuItems(for: snap)
                         }
@@ -329,19 +300,20 @@ struct TransactionSplitView: View {
     /// A transaction row's actions, shared by the tap-to-open `Menu` and the
     /// right-click `.contextMenu` so both surface the same list. Mirrors
     /// `ReserveCardView.menuItems`. Expense rows additionally get exactly one
-    /// reimburse entry, reflecting current link state (US4).
+    /// reimburse entry, reflecting current link state (US4). Every item opens the
+    /// one-stop `TransactionDetailSheet`, landing on the matching section.
     @ViewBuilder
     private func menuItems(for snap: TransactionSnapshot) -> some View {
-        Button("Edit", systemImage: "pencil") { editingTransaction = snap.transaction }
-        Button("Change Category", systemImage: "tag") { changingCategoryFor = snap.transaction }
+        Button("Edit", systemImage: "pencil") { openDetail(snap, focus: .edit) }
+        Button("Change Category", systemImage: "tag") { openDetail(snap, focus: .category) }
         if snap.effectiveType == .expense {
             if viewModel.reimbursedExpenseHashes.contains(snap.id) {
                 Button("View Reimbursement", systemImage: "link") {
-                    viewingReimbursementFor = snap.transaction
+                    openDetail(snap, focus: .reimbursement)
                 }
             } else {
                 Button("Reimburse Expense", systemImage: "arrow.uturn.backward.circle") {
-                    reimbursingExpense = snap.transaction
+                    openDetail(snap, focus: .reimbursement)
                 }
             }
             // Use reserve funds against this expense (hidden when there are no
@@ -349,15 +321,19 @@ struct TransactionSplitView: View {
             if !viewModel.reserves.isEmpty {
                 if viewModel.usedTransactionIDs.contains(snap.id) {
                     Button("View Usage", systemImage: "cart") {
-                        viewingUsageFor = snap.transaction
+                        openDetail(snap, focus: .reserve)
                     }
                 } else {
                     Button("Use Funds", systemImage: "cart") {
-                        usingFundsFor = snap.transaction
+                        openDetail(snap, focus: .reserve)
                     }
                 }
             }
         }
+    }
+
+    private func openDetail(_ snap: TransactionSnapshot, focus: TransactionDetailFocus) {
+        detailRequest = TransactionDetailRequest(fallback: snap.transaction, focus: focus)
     }
 
     // MARK: - Header

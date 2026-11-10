@@ -2,14 +2,20 @@ import Foundation
 
 /// Value-type override for a single transaction, keyed on disk by the
 /// transaction's `contentHash`. Optional fields let a partial edit express
-/// "override category but leave notes untouched." A `nil` category still
-/// overrides — it represents "user explicitly set to None."
+/// "override category but leave notes untouched." A `nil` category means
+/// "follow the rules" — unless `transactionType` is overridden, in which case it
+/// means Uncategorized (see `Transaction.effectiveCategory`).
 struct TransactionEdit: Codable, Equatable, Hashable {
     var category: CategoryID?
     var subcategory: SubcategoryID?
     var notes: String?
     var transactionType: TransactionType?
     var updatedAt: Date
+
+    /// True when this edit's category/subcategory replace the rules' pick.
+    var overridesClassification: Bool {
+        category != nil || transactionType != nil
+    }
 
     // MARK: Codable
 

@@ -609,6 +609,42 @@ struct AppViewModelTests {
         #expect(vm.usageEvent(forExpense: txHash) == nil)
     }
 
+    // MARK: - Type lock (transaction modal)
+
+    @Test("isTypeLocked is true for a used expense")
+    func typeLockedWhenUsed() throws {
+        let dir = TempDataDirectory()
+        let (vm, acct, reserve, txHash) = try makeVMWithExpense(dir: dir)
+        let tx = try #require(vm.transaction(withHash: txHash))
+        #expect(!vm.isTypeLocked(tx))
+
+        try vm.use(amount: 50, from: acct, on: reserve,
+                   transactionContentHash: txHash, note: nil)
+        #expect(vm.isTypeLocked(tx))
+    }
+
+    @Test("isTypeLocked covers both sides of a reimbursement")
+    func typeLockedWhenReimbursed() {
+        let dir = TempDataDirectory()
+        let vm = makeVM(dir: dir)
+        let expense = Transaction(
+            contentHash: "hash-exp-\(UUID().uuidString)", date: Date(timeIntervalSince1970: 0),
+            details: "GLOBEX DINNER", debit: 60, credit: 0,
+            transactionType: .expense, accountID: UUID()
+        )
+        let income = Transaction(
+            contentHash: "hash-inc-\(UUID().uuidString)", date: Date(timeIntervalSince1970: 0),
+            details: "E-TRANSFER JANE DOE", debit: 0, credit: 30,
+            transactionType: .income, accountID: UUID()
+        )
+        #expect(!vm.isTypeLocked(expense))
+        #expect(!vm.isTypeLocked(income))
+
+        #expect(vm.linkReimbursement(expense: expense, toIncome: income))
+        #expect(vm.isTypeLocked(expense))
+        #expect(vm.isTypeLocked(income))
+    }
+
     @Test("deleteReserveEvent refuses to delete an allocation event")
     func deleteReserveEventRejectsAllocation() throws {
         let dir = TempDataDirectory()

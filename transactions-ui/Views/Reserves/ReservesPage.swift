@@ -96,7 +96,7 @@ struct ReservesPage: View {
                 ReserveTransferSheet(mode: .release, reserve: request.reserve)
                     .environment(viewModel)
             case .use:
-                ReserveUseSheet(seed: .fromReserve(request.reserve))
+                ReserveUseSheet(reserve: request.reserve)
                     .environment(viewModel)
             }
         }

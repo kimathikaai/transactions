@@ -7,8 +7,7 @@ import SwiftUI
 /// instead of a nested `Picker` because SwiftUI does not surface a selection made
 /// inside a nested picker on the collapsed row.
 ///
-/// Extracted from `TransactionEditView` so both the Edit sheet and the dedicated
-/// `ChangeCategorySheet` share one source of truth. Renders as a
+/// Used by the transaction modal's Category section (`CategorySection`). Renders as a
 /// `LabeledContent("Category")` row; the two bindings are the flat category /
 /// subcategory state the caller owns.
 struct CategoryPickerMenu: View {

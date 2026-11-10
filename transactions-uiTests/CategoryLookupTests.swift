@@ -93,6 +93,19 @@ struct CategoryLookupTests {
         #expect(result.subcategory == nil)
     }
 
+    @Test("coerceCategory strips a category of the other type (expense category on income)")
+    func coerceStripsMismatchedType() {
+        let cats = fixture()
+        let result = CategoryLookup.coerceCategory(
+            for: .income,
+            category: CategoryID(rawValue: "cat_food"),
+            subcategory: SubcategoryID(rawValue: "cat_gro"),
+            in: cats
+        )
+        #expect(result.category == nil)
+        #expect(result.subcategory == nil)
+    }
+
     @Test("coerceCategory leaves a normal category untouched on a non-transfer type")
     func coercePassesThroughNormalCategory() {
         let cats = fixture()

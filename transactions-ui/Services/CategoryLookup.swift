@@ -22,11 +22,11 @@ enum CategoryLookup {
         categories.first { $0.parent == nil && $0.transactionType == type }
     }
 
-    /// Enforce the transfer type↔category coupling. A transfer type snaps to its
-    /// matching transfer root (subcategory cleared); a non-transfer type strips any
-    /// transfer-typed category to None. Non-transfer categories on non-transfer types
-    /// pass through unchanged. Single source of truth reused by the edit UI's live
-    /// `onChange` and the `AppViewModel.saveEdit` coercion.
+    /// Enforce the type↔category coupling. A transfer type snaps to its matching
+    /// transfer root (subcategory cleared); an expense/income type drops any
+    /// category of a different type (transfer, or expense-on-income and vice versa)
+    /// to None. Matching categories pass through unchanged. Single source of truth
+    /// reused by the transaction modal's Type picker and `AppViewModel.saveEdit`.
     static func coerceCategory(
         for type: TransactionType,
         category: CategoryID?,
@@ -40,7 +40,7 @@ enum CategoryLookup {
         case .expense, .income:
             if let category,
                let resolved = byID(categories)[category.rawValue],
-               resolved.transactionType == .transfer_in || resolved.transactionType == .transfer_out {
+               resolved.transactionType != type {
                 return (nil, nil)
             }
             return (category, subcategory)

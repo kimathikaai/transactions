@@ -680,6 +680,10 @@ final class AppViewModel {
         }
     }
 
+    /// Write a transaction's edit record, kept minimal: a type equal to the parsed
+    /// one isn't an override, a category equal to the rules' pick is stored as nil
+    /// (so it keeps following the rules), and a record left with nothing in it is
+    /// removed rather than written.
     @discardableResult
     func saveEdit(
         for transaction: Transaction,
@@ -688,20 +692,30 @@ final class AppViewModel {
         notes: String?,
         transactionType: TransactionType? = nil
     ) -> Bool {
+        let typeOverride = transactionType == transaction.transactionType ? nil : transactionType
         // Enforce the transfer type↔category coupling centrally so no write path
-        // (edit modal, ChangeCategorySheet, bulk edits) can persist a mismatch.
-        let effectiveType = transactionType ?? transaction.transactionType
-        let coerced = CategoryLookup.coerceCategory(
+        // (edit modal, bulk edits) can persist a mismatch.
+        let effectiveType = typeOverride ?? transaction.transactionType
+        var coerced = CategoryLookup.coerceCategory(
             for: effectiveType,
             category: category,
             subcategory: subcategory,
             in: categories
         )
+        if typeOverride == nil,
+           coerced.category == transaction.category,
+           coerced.subcategory == transaction.subcategory {
+            coerced = (nil, nil)
+        }
+        if coerced.category == nil, coerced.subcategory == nil, typeOverride == nil,
+           notes?.isEmpty ?? true {
+            return clearEdit(for: transaction)
+        }
         let edit = TransactionEdit(
             category: coerced.category,
             subcategory: coerced.subcategory,
             notes: notes,
-            transactionType: transactionType,
+            transactionType: typeOverride,
             updatedAt: .now
         )
         do {
@@ -732,6 +746,47 @@ final class AppViewModel {
             lastSaveError = error
             return false
         }
+    }
+
+    // MARK: - Edit intents (the transaction modal's live writes)
+    //
+    // Each re-reads the live transaction first: several modal writes can land in
+    // one update pass (a notes flush on focus loss plus a category pick), and a
+    // caller's stale copy would overwrite the field the other write just saved.
+
+    /// Set type + category, keeping the transaction's notes. A type-locked
+    /// transaction (see `isTypeLocked`) keeps its current type whatever is passed.
+    @discardableResult
+    func updateClassification(
+        for transaction: Transaction,
+        type: TransactionType,
+        category: CategoryID?,
+        subcategory: SubcategoryID?
+    ) -> Bool {
+        let live = self.transaction(withHash: transaction.contentHash) ?? transaction
+        let type = isTypeLocked(live) ? live.effectiveType : type
+        return saveEdit(for: live, category: category, subcategory: subcategory,
+                        notes: live.effectiveNotes, transactionType: type)
+    }
+
+    /// Set notes, keeping the edit's raw classification — passing the raw (not
+    /// effective) values means a notes-only edit never pins the rules' category.
+    @discardableResult
+    func updateNotes(for transaction: Transaction, notes: String?) -> Bool {
+        let live = self.transaction(withHash: transaction.contentHash) ?? transaction
+        return saveEdit(for: live, category: live.edit?.category,
+                        subcategory: live.edit?.subcategory, notes: notes,
+                        transactionType: live.edit?.transactionType)
+    }
+
+    /// Drop the type and category overrides so the rules decide again; notes stay.
+    /// A type-locked transaction keeps its type override — only the category reverts.
+    @discardableResult
+    func revertClassification(for transaction: Transaction) -> Bool {
+        let live = self.transaction(withHash: transaction.contentHash) ?? transaction
+        let keptType = isTypeLocked(live) ? live.edit?.transactionType : nil
+        return saveEdit(for: live, category: nil, subcategory: nil,
+                        notes: live.effectiveNotes, transactionType: keptType)
     }
 
     /// Overwrite the account's CSV file with `rawCsv` and re-parse just that
@@ -964,9 +1019,26 @@ final class AppViewModel {
     }
 
     /// The `.use` ledger event linking this expense, if any. Backs
-    /// `ViewUsageSheet` (the transactions-list "View Usage" action).
+    /// the transaction modal's Reserve section (`ReserveUseSection`).
     func usageEvent(forExpense hash: String) -> ReserveEvent? {
         reserveEvents.first { $0.type == .use && $0.transactionContentHash == hash }
+    }
+
+    /// The live transaction for a contentHash — the transaction modal re-reads
+    /// through this after every write.
+    func transaction(withHash hash: String) -> Transaction? {
+        allTransactions.first { $0.contentHash == hash }
+    }
+
+    /// A linked transaction's type can't change: re-typing would hide the
+    /// modal's Reimbursement/Reserve sections while the links still exist. Covers
+    /// a reimbursed expense, a reserve-used expense, and an income that funds a
+    /// reimbursement.
+    func isTypeLocked(_ transaction: Transaction) -> Bool {
+        let hash = transaction.contentHash
+        return reimbursementLinks[hash] != nil
+            || usedTransactionIDs.contains(hash)
+            || claimed(forReimbursement: hash) > 0
     }
 
     // MARK: - Reimbursement mutations
