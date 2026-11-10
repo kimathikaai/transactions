@@ -27,8 +27,12 @@ struct TransactionCard<Actions: View>: View {
 
     /// Floor for the details text, so a long note can never squeeze it out.
     private let detailsMinWidth: CGFloat = 80
-    /// Cap for the notes column; it truncates beyond this.
+    /// Cap for the notes column; it truncates beyond this. Lifted while hovering.
     private let notesMaxWidth: CGFloat = 160
+
+    /// While hovering, the row shows only date, category symbol, details and notes, so
+    /// the details get the freed width (still one line, so row heights stay fixed).
+    @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -68,6 +72,7 @@ struct TransactionCard<Actions: View>: View {
         }
         .contentShape(.rect(cornerRadius: 6))
         .hoverHighlight(in: .rect(cornerRadius: 6))
+        .onHover { isHovering = $0 }
         .contextMenu { menuActions() }
     }
 
@@ -86,32 +91,38 @@ struct TransactionCard<Actions: View>: View {
                 .foregroundStyle(categoryColor)
                 .frame(width: 24)
 
-            Text(snapshot.effectiveCategory.map { categoryLabel(category: $0, subcategory: snapshot.effectiveSubcategory) } ?? "Uncategorized")
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(snapshot.effectiveCategory == nil ? .secondary : .primary)
-                .frame(width: 120, alignment: .leading)
-                .lineLimit(1)
+            if !isHovering {
+                Text(snapshot.effectiveCategory.map { categoryLabel(category: $0, subcategory: snapshot.effectiveSubcategory) } ?? "Uncategorized")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(snapshot.effectiveCategory == nil ? .secondary : .primary)
+                    .frame(width: 120, alignment: .leading)
+                    .lineLimit(1)
+            }
         }
     }
 
     private var metaCell: some View {
         HStack(spacing: 8) {
-            Text(snapshot.accountName ?? "")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 110, alignment: .leading)
-                .lineLimit(1)
+            if !isHovering {
+                Text(snapshot.accountName ?? "")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 110, alignment: .leading)
+                    .lineLimit(1)
+            }
 
             // Details + notes share the row's flexible space. Details always keeps at least
             // `detailsMinWidth` and fills whatever is left; notes are capped at
             // `notesMaxWidth`. Notes get first claim (higher layout priority), but SwiftUI
             // reserves details' minimum first, so a long note truncates before details do.
+            // While hovering, the cap and priority are lifted so the two share the width.
             Text(snapshot.details)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .frame(minWidth: detailsMinWidth, maxWidth: .infinity, alignment: .leading)
+                .help(snapshot.details)
 
             // Edited notes, when present. A leading "|" separates the note from the
             // details, truncating with an ellipsis. Italic distinguishes it from the
@@ -128,21 +139,23 @@ struct TransactionCard<Actions: View>: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
-                .frame(maxWidth: notesMaxWidth, alignment: .leading)
-                .layoutPriority(1)
+                .frame(maxWidth: isHovering ? nil : notesMaxWidth, alignment: .leading)
+                .layoutPriority(isHovering ? 0 : 1)
                 .help(notes)
             }
 
-            statusIcons
-                .frame(width: 30, alignment: .trailing)
+            if !isHovering {
+                statusIcons
+                    .frame(width: 30, alignment: .trailing)
 
-            Text(formattedAmount)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .monospacedDigit()
-                .foregroundStyle(amountColor)
-                .fixedSize()   // never compress or wrap the amount
-                .layoutPriority(2)
+                Text(formattedAmount)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                    .foregroundStyle(amountColor)
+                    .fixedSize()   // never compress or wrap the amount
+                    .layoutPriority(2)
+            }
         }
     }
 
