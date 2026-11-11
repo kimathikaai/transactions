@@ -29,6 +29,8 @@ struct TransactionCard<Actions: View>: View {
     private let detailsMinWidth: CGFloat = 80
     /// Cap for the notes column; it truncates beyond this. Lifted while hovering.
     private let notesMaxWidth: CGFloat = 160
+    /// Cap for the details while hovering a row with notes; shorter details hug their text.
+    private let detailsHoverMaxWidth: CGFloat = 240
 
     /// While hovering, the row shows only date, category symbol, details and notes, so
     /// the details get the freed width (still one line, so row heights stay fixed).
@@ -61,7 +63,7 @@ struct TransactionCard<Actions: View>: View {
 
             Menu { menuActions() } label: {
                 metaCell
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .contentShape(.rect)
             }
                 .menuStyle(.button)
@@ -116,18 +118,20 @@ struct TransactionCard<Actions: View>: View {
             // `detailsMinWidth` and fills whatever is left; notes are capped at
             // `notesMaxWidth`. Notes get first claim (higher layout priority), but SwiftUI
             // reserves details' minimum first, so a long note truncates before details do.
-            // While hovering, the cap and priority are lifted so the two share the width.
-            Text(snapshot.details)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .frame(minWidth: detailsMinWidth, maxWidth: .infinity, alignment: .leading)
-                .help(snapshot.details)
+            // While hovering a row with notes, it flips: details hug their text up to
+            // `detailsHoverMaxWidth` and claim it first, and the uncapped notes take the rest.
+            if isHovering, notes != nil {
+                MaxWidthLayout(maxWidth: detailsHoverMaxWidth) { detailsText }
+                    .layoutPriority(1)
+            } else {
+                detailsText
+                    .frame(minWidth: detailsMinWidth, maxWidth: .infinity, alignment: .leading)
+            }
 
             // Edited notes, when present. A leading "|" separates the note from the
             // details, truncating with an ellipsis. Italic distinguishes it from the
             // details text; the full note is available on hover.
-            if let notes = snapshot.notes, !notes.isEmpty {
+            if let notes {
                 HStack(spacing: 6) {
                     Text("|")
                         .font(.caption)
@@ -157,6 +161,20 @@ struct TransactionCard<Actions: View>: View {
                     .layoutPriority(2)
             }
         }
+    }
+
+    private var detailsText: some View {
+        Text(snapshot.details)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .help(snapshot.details)
+    }
+
+    /// The edited note, or nil when absent or empty.
+    private var notes: String? {
+        guard let notes = snapshot.notes, !notes.isEmpty else { return nil }
+        return notes
     }
 
     /// Quiet trailing status glyphs describing what happened to this amount:
@@ -235,5 +253,23 @@ struct TransactionCard<Actions: View>: View {
         case .expense: .expense
         case .transfer_in, .transfer_out: .gray
         }
+    }
+}
+
+/// Proposes at most `maxWidth` to its single subview and hugs the result. Unlike
+/// `.frame(maxWidth:)`, which grows to fill its cap, short content stays short.
+private struct MaxWidthLayout: Layout {
+    let maxWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        subviews.first?.sizeThatFits(capped(proposal)) ?? .zero
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size))
+    }
+
+    private func capped(_ proposal: ProposedViewSize) -> ProposedViewSize {
+        ProposedViewSize(width: min(proposal.width ?? .infinity, maxWidth), height: proposal.height)
     }
 }
