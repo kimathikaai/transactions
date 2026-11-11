@@ -274,7 +274,8 @@ struct TransactionSplitView: View {
                     ForEach(cachedTransactions) { snap in
                         TransactionCard(
                             snapshot: snap,
-                            onCategoryTap: { openDetail(snap, focus: .category) }
+                            onCategoryTap: { openDetail(snap, focus: .category) },
+                            onTap: { openDetail(snap, focus: .edit) }
                         ) {
                             menuItems(for: snap)
                         }
@@ -297,8 +298,7 @@ struct TransactionSplitView: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    /// A transaction row's actions, shared by the tap-to-open `Menu` and the
-    /// right-click `.contextMenu` so both surface the same list. Mirrors
+    /// A transaction row's actions, shown in its right-click `.contextMenu`. Mirrors
     /// `ReserveCardView.menuItems`. Expense rows additionally get exactly one
     /// reimburse entry, reflecting current link state (US4). Every item opens the
     /// one-stop `TransactionDetailSheet`, landing on the matching section.

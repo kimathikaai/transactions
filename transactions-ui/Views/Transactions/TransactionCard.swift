@@ -13,16 +13,17 @@ private let transactionCardDateFormatter: DateFormatter = {
 
 /// A transaction row. The category (icon + label) is a dedicated `Button` that opens
 /// the Change Category modal via `onCategoryTap` and highlights in its category color
-/// on hover; the rest of the row (date, meta) is split into two `Menu`s presenting the
-/// shared row actions, and the whole row keeps its subtle hover + right-click context
-/// menu. The category must live *outside* any `Menu` because a sub-tap inside a
-/// `.menuStyle(.button)` label does not fire reliably.
+/// on hover; a left-click on the rest of the row (date, meta) opens the edit modal via
+/// `onTap`. The whole row keeps its subtle hover, and a right-click opens the shared
+/// row actions as a context menu.
 struct TransactionCard<Actions: View>: View {
     @Environment(AppViewModel.self) private var viewModel
     let snapshot: TransactionSnapshot
     /// Invoked on a left-click of the category region — opens the recategorize modal.
     let onCategoryTap: () -> Void
-    /// The row's action items, shared by both flanking menus and the context menu.
+    /// Invoked on a left-click anywhere else on the row — opens the edit modal.
+    let onTap: () -> Void
+    /// The row's action items, shown in the right-click context menu.
     @ViewBuilder let menuActions: () -> Actions
 
     /// Floor for the details text, so a long note can never squeeze it out.
@@ -38,14 +39,12 @@ struct TransactionCard<Actions: View>: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Menu { menuActions() } label: {
+            Button(action: onTap) {
                 dateCell
                     .frame(maxHeight: .infinity)
                     .contentShape(.rect)
             }
-                .menuStyle(.button)
                 .buttonStyle(.plain)
-                .menuIndicator(.hidden)
                 .fixedSize(horizontal: true, vertical: false)
                 .padding(.leading, 4)
 
@@ -61,14 +60,12 @@ struct TransactionCard<Actions: View>: View {
             .buttonStyle(.plain)
             .hoverHighlight(in: .rect(cornerRadius: 4), color: categoryHoverColor, opacity: 0.15)
 
-            Menu { menuActions() } label: {
+            Button(action: onTap) {
                 metaCell
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .contentShape(.rect)
             }
-                .menuStyle(.button)
                 .buttonStyle(.plain)
-                .menuIndicator(.hidden)
                 .frame(maxWidth: .infinity)
                 .padding(.trailing, 4)
         }
