@@ -10,8 +10,9 @@ struct AccountFocusedEditView: View {
     @Binding var draft: AccountDraft
     var commit: (AccountDraft) -> Void
     var cancel: () -> Void
+    /// Shows the "Upload first CSV" button when set (create mode only; existing
+    /// accounts upload from the Update modal).
     var uploadCSV: ((AccountDraft) -> Void)? = nil
-    var uploadCSVLabel: String = "Upload first CSV (optional)"
     var delete: (() -> Void)? = nil
     /// Transactions belonging to the account being edited (empty for create mode).
     var accountTransactions: [Transaction] = []
@@ -70,20 +71,19 @@ struct AccountFocusedEditView: View {
                 .focused($balanceFocused)
             }
 
-            if let uploadCSV {
-                ReconciliationPanel(
-                    resolved: resolvedBalance,
-                    count: transactionsCount,
-                    net: transactionsNet,
-                    csvLabel: uploadCSVLabel,
-                    csvDisabled: !isValid,
-                    onUpload: {
+            ReconciliationPanel(
+                resolved: resolvedBalance,
+                count: transactionsCount,
+                net: transactionsNet,
+                csvDisabled: !isValid,
+                onUpload: uploadCSV.map { uploadCSV in
+                    {
                         var d = draft
                         d.name = trimmedName
                         uploadCSV(d)
                     }
-                )
-            }
+                }
+            )
 
             ActionFooter(
                 isValid: isValid,
@@ -185,9 +185,8 @@ private struct ReconciliationPanel: View {
     let resolved: Double
     let count: Int
     let net: Double
-    let csvLabel: String
     let csvDisabled: Bool
-    let onUpload: () -> Void
+    let onUpload: (() -> Void)?
 
     private var resolvedColor: Color {
         if resolved > 0 { return .income }
@@ -236,13 +235,15 @@ private struct ReconciliationPanel: View {
                 .foregroundStyle(.secondary)
                 .contentTransition(.numericText())
 
-            Button(action: onUpload) {
-                Label(csvLabel, systemImage: "arrow.up.doc")
-                    .font(.callout)
-                    .frame(maxWidth: .infinity)
+            if let onUpload {
+                Button(action: onUpload) {
+                    Label("Upload first CSV (optional)", systemImage: "arrow.up.doc")
+                        .font(.callout)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                .disabled(csvDisabled)
             }
-            .buttonStyle(.glass)
-            .disabled(csvDisabled)
         }
         .padding(16)
         .frame(maxWidth: .infinity)

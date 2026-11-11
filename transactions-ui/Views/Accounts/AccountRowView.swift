@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// One account rendered as a table row. Left-click opens a dropdown menu,
-/// right-click opens the same context menu — today both contain only "Edit".
-/// Mirrors `ReserveCardView`'s click model. Column widths come from `AccountColumn`.
+/// One account rendered as a table row. Left-click opens the Update modal (the
+/// everyday action); right-click offers Update and Edit Account. Column widths
+/// come from `AccountColumn`.
 struct AccountRowView: View {
     let account: Account
     var onEdit: () -> Void
-    var onManageTransactions: () -> Void
+    var onUpdate: () -> Void
 
     @Environment(AppViewModel.self) private var viewModel
 
@@ -41,9 +41,7 @@ struct AccountRowView: View {
     private var tint: Color { Color(hex: account.type.tint) }
 
     var body: some View {
-        Menu {
-            menuItems
-        } label: {
+        Button(action: onUpdate) {
             HStack(spacing: AccountColumn.spacing) {
                 HStack(spacing: 6) {
                     Image(systemName: account.type.symbol)
@@ -79,16 +77,14 @@ struct AccountRowView: View {
             .padding(.horizontal, AccountColumn.horizontalPadding)
             .padding(.vertical, 2)
         }
-        .menuStyle(.button)
         .buttonStyle(.plain)
-        .menuIndicator(.hidden)
         .hoverHighlight(in: .rect(cornerRadius: 6))
         .contextMenu { menuItems }
     }
 
     @ViewBuilder private var menuItems: some View {
-        Button("Edit", systemImage: "pencil") { onEdit() }
-        Button("Transactions", systemImage: "list.bullet") { onManageTransactions() }
+        Button("Update", systemImage: "arrow.trianglehead.2.clockwise") { onUpdate() }
+        Button("Edit Account", systemImage: "pencil") { onEdit() }
     }
 }
 
@@ -101,7 +97,7 @@ struct AccountRowView: View {
         initialBalance: 142.07,
         csvFileName: "chequing.csv"
     )
-    return AccountRowView(account: sampleAccount, onEdit: {}, onManageTransactions: {})
+    return AccountRowView(account: sampleAccount, onEdit: {}, onUpdate: {})
         .padding()
         .environment(AppViewModel(
             accountStore: AccountStore(fileURL: dir.appendingPathComponent("accounts.json")),

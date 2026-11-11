@@ -7,7 +7,7 @@ struct AccountsContent: View {
     @Environment(AppViewModel.self) private var viewModel
 
     var onSelect: (Account) -> Void
-    var onManageTransactions: (Account) -> Void
+    var onUpdate: (Account) -> Void
 
     /// Group by account type (declaration order), then alphabetical by name.
     private var sortedAccounts: [Account] {
@@ -28,7 +28,7 @@ struct AccountsContent: View {
                     AccountRowView(
                         account: account,
                         onEdit: { onSelect(account) },
-                        onManageTransactions: { onManageTransactions(account) }
+                        onUpdate: { onUpdate(account) }
                     )
                 }
             }
@@ -60,7 +60,7 @@ private struct AccountsHeaderRow: View {
 #Preview {
     let dir = FileManager.default.temporaryDirectory
         .appendingPathComponent("preview-\(UUID())", isDirectory: true)
-    return AccountsContent(onSelect: { _ in }, onManageTransactions: { _ in })
+    return AccountsContent(onSelect: { _ in }, onUpdate: { _ in })
         .padding()
         .environment(AppViewModel(
             accountStore: AccountStore(fileURL: dir.appendingPathComponent("accounts.json")),

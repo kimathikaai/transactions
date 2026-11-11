@@ -4,7 +4,7 @@ struct AccountsPage: View {
     @Environment(AppViewModel.self) private var viewModel
 
     @State private var editingAccount: Account?
-    @State private var managingAccount: Account?
+    @State private var updatingAccount: Account?
     @State private var isCreating = false
 
     /// Matches the Transactions and Reserves top rows (`ReservesPage.reservoirCardHeight`).
@@ -38,7 +38,7 @@ struct AccountsPage: View {
             } content: {
                 AccountsContent(
                     onSelect: { editingAccount = $0 },
-                    onManageTransactions: { managingAccount = $0 }
+                    onUpdate: { updatingAccount = $0 }
                 )
                 .frame(maxHeight: .infinity)
             }
@@ -51,8 +51,8 @@ struct AccountsPage: View {
         .sheet(item: $editingAccount) { account in
             AccountEditSheet(account: account)
         }
-        .sheet(item: $managingAccount) { account in
-            ManageTransactionsSheet(account: account)
+        .sheet(item: $updatingAccount) { account in
+            AccountUpdateSheet(account: account)
         }
     }
 }
