@@ -2,8 +2,8 @@ import SwiftUI
 
 /// A read-only sheet showing the activity ledger for a single reserve — the same
 /// rows as the Reserves page's global Activity section, filtered to just this
-/// reserve. Reuses `ActivityContent` unchanged; the per-row delete on `.use`
-/// rows stays functional. Styled after `ReserveUseSheet` (footer with a single
+/// reserve. Reuses `ActivityContent` unchanged; clicking a row opens its
+/// `ReserveActivityDetailSheet` on top of this one. Styled after `ReserveUseSheet` (footer with a single
 /// dismiss button, clear presentation background).
 struct ReserveActivitySheet: View {
     let reserve: Reserve
@@ -20,10 +20,7 @@ struct ReserveActivitySheet: View {
         VStack(alignment: .leading, spacing: 16) {
             ScrollView {
                 SectionContainer(title: "Activity") {
-                    ActivityContent(
-                        rows: rows,
-                        onDelete: { viewModel.deleteReserveEvent(id: $0) }
-                    )
+                    ActivityContent(rows: rows)
                 }
             }
 

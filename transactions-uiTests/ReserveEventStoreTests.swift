@@ -117,4 +117,35 @@ struct ReserveEventStoreTests {
         try store.load()
         #expect(store.events.isEmpty)
     }
+
+    @Test func setLinkReplacesOnlyTheHash() throws {
+        let dir = TempDataDirectory()
+        let url = dir.file("reserveEvents.json")
+        let store = ReserveEventStore(fileURL: url)
+        try store.load()
+        let original = event()
+        try store.append(original)
+
+        try store.setLink(eventID: original.id, hash: "h1")
+        let reloaded = ReserveEventStore(fileURL: url)
+        try reloaded.load()
+        var expected = original
+        expected.transactionContentHash = "h1"
+        #expect(reloaded.events == [expected])
+
+        try store.setLink(eventID: original.id, hash: nil)
+        let cleared = ReserveEventStore(fileURL: url)
+        try cleared.load()
+        #expect(cleared.events == [original])
+    }
+
+    @Test func setLinkUnknownIDIsNoOp() throws {
+        let dir = TempDataDirectory()
+        let store = ReserveEventStore(fileURL: dir.file("reserveEvents.json"))
+        try store.load()
+        let e = event()
+        try store.append(e)
+        try store.setLink(eventID: UUID(), hash: "x")
+        #expect(store.events == [e])
+    }
 }

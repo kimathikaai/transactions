@@ -2,18 +2,28 @@ import SwiftUI
 
 /// The Reserves-page "Activity" table: one row per allocation/release/use
 /// event, newest first. Mirrors `SourcesContent`'s divider-separated layout.
-/// Only "Use" rows can be deleted (hard-removing the underlying ledger event)
-/// via a trailing affordance guarded by a destructive confirmation; allocation
-/// and release rows show no delete affordance.
+/// Rows highlight on hover; clicking one opens `ReserveActivityDetailSheet`,
+/// where add/release links are set or cleared and "Use" events are deleted.
 ///
 /// `compact` renders a narrow two-line row (for the Reserves page's side column):
-/// the info text moves to a tooltip and "Use" deletion to the right-click menu.
+/// the info text moves to a tooltip.
 struct ActivityContent: View {
     let rows: [AppViewModel.ReserveActivityRow]
-    var onDelete: (UUID) -> Void = { _ in }
     var compact: Bool = false
 
+    @Environment(AppViewModel.self) private var viewModel
+    @State private var selection: ActivitySelection?
+
     var body: some View {
+        list
+            .sheet(item: $selection) { selection in
+                ReserveActivityDetailSheet(eventID: selection.id)
+                    .environment(viewModel)
+            }
+    }
+
+    @ViewBuilder
+    private var list: some View {
         if rows.isEmpty {
             Text("No allocations, releases, or uses yet.")
                 .font(.callout)
@@ -24,11 +34,14 @@ struct ActivityContent: View {
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                        if compact {
-                            CompactActivityRowView(row: row, onDelete: { onDelete(row.id) })
-                        } else {
-                            ActivityRowView(row: row, onDelete: { onDelete(row.id) })
+                        Group {
+                            if compact {
+                                CompactActivityRowView(row: row)
+                            } else {
+                                ActivityRowView(row: row)
+                            }
                         }
+                        .activityRowInteraction { selection = ActivitySelection(id: row.id) }
                         if index < rows.count - 1 {
                             Divider()
                         }
@@ -36,6 +49,42 @@ struct ActivityContent: View {
                 }
             }
         }
+    }
+}
+
+/// The event whose detail sheet is open.
+private struct ActivitySelection: Identifiable {
+    let id: UUID
+}
+
+/// Hover highlight + click target shared by both row styles. A plain-styled
+/// Button (not a tap gesture) so keyboard and VoiceOver can open the row too.
+private struct ActivityRowInteraction: ViewModifier {
+    let onTap: () -> Void
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        Button {
+            // The sheet covers the row, so onHover(false) may never arrive.
+            isHovering = false
+            onTap()
+        } label: {
+            content
+                .padding(.horizontal, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.primary.opacity(isHovering ? 0.06 : 0))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+    }
+}
+
+private extension View {
+    func activityRowInteraction(onTap: @escaping () -> Void) -> some View {
+        modifier(ActivityRowInteraction(onTap: onTap))
     }
 }
 
@@ -47,12 +96,12 @@ private enum ActivityRowLayout {
     static let reserveWidth: CGFloat = 110
     static let actionWidth: CGFloat = 110
     static let amountWidth: CGFloat = 92
-    static let deleteWidth: CGFloat = 20
     static let spacing: CGFloat = 8
 }
 
 /// UTC-anchored short date, matching `TransactionCard`'s formatter style.
-private let activityDateFormatter: DateFormatter = {
+/// Shared with `ReserveActivityDetailSheet`.
+let activityDateFormatter: DateFormatter = {
     let f = DateFormatter()
     f.dateFormat = "MMM d, yyyy"
     f.timeZone = TimeZone(identifier: "UTC")
@@ -61,7 +110,8 @@ private let activityDateFormatter: DateFormatter = {
 
 // MARK: - Shared row presentation
 
-private extension AppViewModel.ReserveActivityRow {
+/// Shared by both row styles and `ReserveActivityDetailSheet`.
+extension AppViewModel.ReserveActivityRow {
     var accent: Color {
         switch type {
         case .allocation: return .secondary
@@ -98,27 +148,17 @@ private extension AppViewModel.ReserveActivityRow {
         return "\(sign)\(amount.formatted(.cad))"
     }
 
-    /// Plain-text form of the wide row's information column, for the compact row's tooltip.
+    /// Plain-text form of the wide row's information column: the compact row's
+    /// tooltip, and the wide row's tooltip (which adds the note to a link).
     var informationText: String {
-        if type == .use {
-            return linkedDetails ?? "(unlinked) The linked transaction no longer resolves."
-        }
-        return note ?? ""
-    }
-}
-
-/// Destructive confirmation shared by both row styles before hard-removing a "Use" event.
-private extension View {
-    func deleteActivityConfirmation(isPresented: Binding<Bool>, onDelete: @escaping () -> Void) -> some View {
-        confirmationDialog(
-            "Delete this activity?",
-            isPresented: isPresented,
-            titleVisibility: .visible
-        ) {
-            Button("Delete", role: .destructive, action: onDelete)
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This removes the ledger event and recomputes reserve balances. This cannot be undone.")
+        switch info {
+        case .linked(let details):
+            guard let note, !note.isEmpty else { return details }
+            return "\(details) — \(note)"
+        case .dangling:
+            return "(unlinked) The linked transaction no longer resolves."
+        case .note(let note):
+            return note ?? ""
         }
     }
 }
@@ -127,9 +167,6 @@ private extension View {
 
 private struct ActivityRowView: View {
     let row: AppViewModel.ReserveActivityRow
-    var onDelete: () -> Void
-
-    @State private var confirmingDelete = false
 
     var body: some View {
         HStack(spacing: ActivityRowLayout.spacing) {
@@ -158,60 +195,38 @@ private struct ActivityRowView: View {
                 .foregroundStyle(row.accent)
                 .lineLimit(1)
                 .frame(width: ActivityRowLayout.amountWidth, alignment: .trailing)
-
-            // Only "Use" events are deletable. Deleting an allocation or release
-            // would corrupt the folded balance (a later offsetting event would
-            // still subtract against nothing), so those rows show no affordance —
-            // an empty spacer keeps the columns aligned.
-            if row.type == .use {
-                Button {
-                    confirmingDelete = true
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .frame(width: ActivityRowLayout.deleteWidth, alignment: .trailing)
-                .help("Delete this activity")
-                .deleteActivityConfirmation(isPresented: $confirmingDelete, onDelete: onDelete)
-            } else {
-                Color.clear
-                    .frame(width: ActivityRowLayout.deleteWidth, height: 0)
-            }
         }
         .padding(.vertical, 8)
     }
 
-    /// Column 5. Use rows carry a linked expense transaction: show its
-    /// details behind a link glyph, or "(unlinked)" when the hash no longer
-    /// resolves. Allocate/release rows show their optional note instead.
+    /// Column 5. A linked row (any type) shows the transaction's details
+    /// behind a link glyph — the tooltip adds the note — or "(unlinked)" when
+    /// the hash no longer resolves. Unlinked rows show their optional note.
     @ViewBuilder
     private var informationView: some View {
-        if row.type == .use {
-            if let details = row.linkedDetails {
-                HStack(spacing: 4) {
-                    Image(systemName: "link")
-                    Text(details)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .help(details)
-            } else {
-                Text("(unlinked)")
-                    .font(.caption.italic())
-                    .foregroundStyle(.secondary)
-                    .help("The linked transaction no longer resolves.")
+        switch row.info {
+        case .linked(let details):
+            HStack(spacing: 4) {
+                Image(systemName: "link")
+                Text(details)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-        } else {
-            Text(row.note ?? "")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .help(row.informationText)
+        case .dangling:
+            Text("(unlinked)")
+                .font(.caption.italic())
+                .foregroundStyle(.secondary)
+                .help("The linked transaction no longer resolves.")
+        case .note(let note):
+            Text(note ?? "")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .help(row.note ?? "")
+                .help(note ?? "")
         }
     }
 }
@@ -219,13 +234,9 @@ private struct ActivityRowView: View {
 // MARK: - Compact Row
 
 /// Two-line row for narrow columns: emoji, reserve, and signed amount on top; date and
-/// action phrase below. The info column becomes a tooltip; "Use" rows are deleted via
-/// the right-click menu.
+/// action phrase below. The info column becomes a tooltip.
 private struct CompactActivityRowView: View {
     let row: AppViewModel.ReserveActivityRow
-    var onDelete: () -> Void
-
-    @State private var confirmingDelete = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -258,16 +269,22 @@ private struct CompactActivityRowView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .help(row.informationText)
-        .contextMenu {
-            if row.type == .use {
-                Button("Delete", systemImage: "trash", role: .destructive) { confirmingDelete = true }
-            }
-        }
-        .deleteActivityConfirmation(isPresented: $confirmingDelete, onDelete: onDelete)
     }
 }
 
 // MARK: - Preview
+
+/// Empty VM so row clicks have an environment to open the detail sheet from.
+private func previewActivityViewModel() -> AppViewModel {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("preview-\(UUID())", isDirectory: true)
+    return AppViewModel(
+        accountStore: AccountStore(fileURL: dir.appendingPathComponent("accounts.json")),
+        reserveStore: ReserveStore(fileURL: dir.appendingPathComponent("reserves.json")),
+        reserveEventStore: ReserveEventStore(fileURL: dir.appendingPathComponent("reserveEvents.json")),
+        editStore: EditStore(fileURL: dir.appendingPathComponent("edits.json"))
+    )
+}
 
 #Preview("Activity") {
     let vacationID = UUID()
@@ -294,6 +311,7 @@ private struct CompactActivityRowView: View {
     SectionContainer(title: "Activity") {
         ActivityContent(rows: rows)
     }
+    .environment(previewActivityViewModel())
     .frame(width: 860)
     .padding(20)
 }
@@ -309,6 +327,7 @@ private struct CompactActivityRowView: View {
     SectionContainer(title: "Activity") {
         ActivityContent(rows: rows, compact: true)
     }
+    .environment(previewActivityViewModel())
     .frame(width: 240)
     .padding(20)
 }

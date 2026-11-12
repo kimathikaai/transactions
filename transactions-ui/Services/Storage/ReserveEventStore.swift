@@ -3,7 +3,8 @@ import Foundation
 /// Append-only store for `ReserveEvent`s, backed by `reserveEvents.json`.
 /// This log is the single source of truth for reservation state — the net
 /// per-(reserve,account) amounts consumed by the rest of the app are *derived*
-/// from it via `foldEvents(_:)`.
+/// from it via `foldEvents(_:)`. The one in-place mutation is `setLink`, which
+/// touches only the provenance `transactionContentHash` (no money math reads it).
 final class ReserveEventStore {
 
     private let fileURL: URL
@@ -48,6 +49,16 @@ final class ReserveEventStore {
 
     func append(_ event: ReserveEvent) throws {
         events.append(event)
+        try save()
+    }
+
+    /// Set or clear the linked transaction on one event, leaving every other
+    /// field untouched. An unknown id is a no-op (nothing is written). The
+    /// app-level policy (`AppViewModel.setReserveEventLink`) restricts this to
+    /// allocation/release events — a use *is* its link.
+    func setLink(eventID: UUID, hash: String?) throws {
+        guard let index = events.firstIndex(where: { $0.id == eventID }) else { return }
+        events[index].transactionContentHash = hash
         try save()
     }
 

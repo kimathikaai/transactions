@@ -336,7 +336,8 @@ struct TransactionSplitView: View {
 
     /// A transaction row's actions, shown in its right-click `.contextMenu`. Mirrors
     /// `ReserveCardView.menuItems`. Expense rows additionally get exactly one
-    /// reimburse entry, reflecting current link state (US4). Every item opens the
+    /// reimburse entry, reflecting current link state (US4); other rows get a
+    /// Reserve Activity entry (e.g. linking a paycheque to an add). Every item opens the
     /// one-stop `TransactionDetailSheet`, landing on the matching section.
     @ViewBuilder
     private func menuItems(for snap: TransactionSnapshot) -> some View {
@@ -367,6 +368,10 @@ struct TransactionSplitView: View {
                         openDetail(snap, focus: .reserve)
                     }
                 }
+            }
+        } else if !viewModel.reserves.isEmpty {
+            Button("Reserve Activity…", systemImage: "tray.and.arrow.down") {
+                openDetail(snap, focus: .reserve)
             }
         }
     }

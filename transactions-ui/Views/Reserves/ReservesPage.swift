@@ -71,11 +71,7 @@ struct ReservesPage: View {
                 }
 
                 SectionContainer(title: "Activity") {
-                    ActivityContent(
-                        rows: viewModel.reserveActivity,
-                        onDelete: { viewModel.deleteReserveEvent(id: $0) },
-                        compact: true
-                    )
+                    ActivityContent(rows: viewModel.reserveActivity, compact: true)
                     .frame(maxHeight: .infinity, alignment: .top)
                 }
                 .frame(width: sideColumnWidth)

@@ -472,6 +472,20 @@ final class AppViewModel {
         let transactionContentHash: String?
         let linkedDetails: String?
         let linkedDate: Date?
+
+        /// What the Activity table's information column shows: the linked
+        /// transaction when it resolves, "(unlinked)" when its hash dangles
+        /// (even if there's a note), otherwise the note.
+        var info: ReserveActivityInfo {
+            guard transactionContentHash != nil else { return .note(note) }
+            return linkedDetails.map { .linked(details: $0) } ?? .dangling
+        }
+    }
+
+    enum ReserveActivityInfo: Equatable {
+        case linked(details: String)
+        case dangling
+        case note(String?)
     }
 
     var reserveActivity: [ReserveActivityRow] {
@@ -521,26 +535,27 @@ final class AppViewModel {
         Set(reserveEvents.lazy.filter { $0.type == .use }.compactMap(\.transactionContentHash))
     }
 
-    /// A dangling use link: a `.use` ledger event whose
+    /// A dangling reserve link: a ledger event (any type) whose
     /// `transactionContentHash` no longer resolves to a loaded transaction (the
     /// CSV row changed, or the transaction/account was removed). Surfaced as a
     /// debug-panel health check; renders as "(unlinked)" in the Activity table.
-    struct DanglingUseLink: Identifiable {
+    struct DanglingReserveLink: Identifiable {
         let id: UUID          // the event id
         let reserveName: String
+        let type: ReserveEventType
         let contentHash: String
     }
 
-    var danglingUseLinks: [DanglingUseLink] {
+    var danglingReserveLinks: [DanglingReserveLink] {
         let live = Set(allTransactions.map(\.contentHash))
         let reserveByID = Dictionary(uniqueKeysWithValues: reserves.map { ($0.id, $0) })
         return reserveEvents.compactMap { event in
-            guard event.type == .use,
-                  let hash = event.transactionContentHash,
+            guard let hash = event.transactionContentHash,
                   !live.contains(hash) else { return nil }
-            return DanglingUseLink(
+            return DanglingReserveLink(
                 id: event.id,
                 reserveName: reserveByID[event.reserveID]?.name ?? "—",
+                type: event.type,
                 contentHash: hash
             )
         }
@@ -1050,18 +1065,22 @@ final class AppViewModel {
         }
     }
 
-    func claim(amount: Double, from account: Account, to reserve: Reserve, note: String? = nil) throws {
+    func claim(amount: Double, from account: Account, to reserve: Reserve, note: String? = nil,
+               transactionContentHash: String? = nil) throws {
         let service = ReserveService(eventStore: reserveEventStore)
         let freeAvail = free(of: account, transactions: allTransactions, reservations: reservations)
-        try service.claim(amount: amount, from: account, freeAvailable: freeAvail, to: reserve, note: note)
+        try service.claim(amount: amount, from: account, freeAvailable: freeAvail, to: reserve, note: note,
+                          transactionContentHash: transactionContentHash)
         refreshDerivedState()
     }
 
-    func release(amount releaseAmount: Double, from reserve: Reserve, to account: Account, note: String? = nil) throws {
+    func release(amount releaseAmount: Double, from reserve: Reserve, to account: Account, note: String? = nil,
+                 transactionContentHash: String? = nil) throws {
         let service = ReserveService(eventStore: reserveEventStore)
         let avail = amount(reserveID: reserve.id, accountID: account.id, in: reservations)
         try service.release(amount: releaseAmount, from: reserve, to: account,
-                            availableForAccountInReserve: avail, note: note)
+                            availableForAccountInReserve: avail, note: note,
+                            transactionContentHash: transactionContentHash)
         refreshDerivedState()
     }
 
@@ -1084,8 +1103,8 @@ final class AppViewModel {
         refreshDerivedState()
     }
 
-    /// Hard-remove a single ledger event — backs the Activity table's per-row
-    /// delete. Only `.use` events may be deleted: removing an allocation or
+    /// Hard-remove a single ledger event — backs the activity detail sheet's
+    /// Delete and the transaction modal's use Unlink. Only `.use` events may be deleted: removing an allocation or
     /// release would corrupt the folded balance (a later offsetting event would
     /// still subtract against nothing). Non-`.use` deletions are rejected
     /// (returns `false`, no mutation). Deleting a `.use` event frees any linked
@@ -1106,8 +1125,34 @@ final class AppViewModel {
         }
     }
 
+    /// Set or clear the provenance link on an allocation/release event. Refuses
+    /// (returns `false`, no write) a missing event or a `.use` — a use *is* its
+    /// link, so unlinking one means deleting it via `deleteReserveEvent`.
+    @discardableResult
+    func setReserveEventLink(eventID: UUID, hash: String?) -> Bool {
+        guard let event = reserveEvents.first(where: { $0.id == eventID }),
+              event.type != .use else { return false }
+        do {
+            try reserveEventStore.setLink(eventID: eventID, hash: hash)
+            refreshDerivedState()
+            lastSaveError = nil
+            return true
+        } catch {
+            lastSaveError = error
+            return false
+        }
+    }
+
+    /// Every ledger event (any type) linked to this transaction, newest first.
+    /// Backs the transaction modal's Reserve section.
+    func reserveEvents(linkedTo hash: String) -> [ReserveEvent] {
+        reserveEvents
+            .filter { $0.transactionContentHash == hash }
+            .sorted { $0.date > $1.date }
+    }
+
     /// The `.use` ledger event linking this expense, if any. Backs
-    /// the transaction modal's Reserve section (`ReserveUseSection`).
+    /// the transaction modal's Reserve section (`ReserveActivitySection`).
     func usageEvent(forExpense hash: String) -> ReserveEvent? {
         reserveEvents.first { $0.type == .use && $0.transactionContentHash == hash }
     }

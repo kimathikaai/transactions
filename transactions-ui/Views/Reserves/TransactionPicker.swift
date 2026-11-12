@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// A searchable list of expense transactions, presented as a secondary sheet by
-/// `ReserveUseSheet`. Rows stay selectable even when already linked to a
-/// use — the parent sheet surfaces the "already used" error inline — but
-/// linked rows are marked so the choice is informed.
-struct ExpenseTransactionPicker: View {
-    let transactions: [TransactionSnapshot]   // expense-only, newest-first
+/// A searchable list of transactions, presented as a secondary sheet by the
+/// reserve sheets (`ReserveUseSheet` passes expenses only; add/release linking
+/// passes every transaction). Rows in `linkedHashes` stay selectable — the
+/// parent surfaces any "already used" error inline — but are marked so the
+/// choice is informed.
+struct TransactionPicker: View {
+    let transactions: [TransactionSnapshot]   // candidate transactions, newest-first
     let linkedHashes: Set<String>
     let onSelect: (TransactionSnapshot) -> Void
 
@@ -61,9 +62,10 @@ struct ExpenseTransactionPicker: View {
                 .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Text(abs(tx.effectiveAmount).formatted(.cad))
+            Text(tx.signedAmountText)
                 .font(.callout)
                 .monospacedDigit()
+                .foregroundStyle(tx.amountTint)
         }
         .contentShape(Rectangle())
         .padding(.vertical, 2)

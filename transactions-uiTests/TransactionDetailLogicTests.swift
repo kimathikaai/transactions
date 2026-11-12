@@ -9,45 +9,45 @@ struct TransactionDetailLogicTests {
     @Test func editFocusOpensWhatNeedsAttention() {
         #expect(TransactionDetailSection.initialExpansion(
             focus: .edit, isUncategorized: true, hasNotes: false,
-            isReimbursed: false, isUsed: true) == [.category, .reserve])
+            isReimbursed: false, hasReserveActivity: true) == [.category, .reserve])
         #expect(TransactionDetailSection.initialExpansion(
             focus: .edit, isUncategorized: false, hasNotes: true,
-            isReimbursed: true, isUsed: false) == [.notes, .reimbursement])
+            isReimbursed: true, hasReserveActivity: false) == [.notes, .reimbursement])
     }
 
     @Test func actionFocusOpensOnlyThatSection() {
         #expect(TransactionDetailSection.initialExpansion(
             focus: .reserve, isUncategorized: true, hasNotes: true,
-            isReimbursed: true, isUsed: true) == [.reserve])
+            isReimbursed: true, hasReserveActivity: true) == [.reserve])
         #expect(TransactionDetailSection.initialExpansion(
             focus: .category, isUncategorized: false, hasNotes: false,
-            isReimbursed: false, isUsed: false) == [.category])
+            isReimbursed: false, hasReserveActivity: false) == [.category])
         #expect(TransactionDetailSection.initialExpansion(
             focus: .reimbursement, isUncategorized: true, hasNotes: false,
-            isReimbursed: false, isUsed: false) == [.reimbursement])
+            isReimbursed: false, hasReserveActivity: false) == [.reimbursement])
     }
 
     @Test func linksFocusExpandsLinks() {
         #expect(TransactionDetailSection.initialExpansion(
             focus: .links, isUncategorized: true, hasNotes: true,
-            isReimbursed: false, isUsed: false, isUnlinkedTransfer: true, hasLinks: true) == [.links])
+            isReimbursed: false, hasReserveActivity: false, isUnlinkedTransfer: true, hasLinks: true) == [.links])
     }
 
     @Test func editExpandsLinksForUnlinkedTransfer() {
         #expect(TransactionDetailSection.initialExpansion(
             focus: .edit, isUncategorized: false, hasNotes: false,
-            isReimbursed: false, isUsed: false, isUnlinkedTransfer: true).contains(.links))
+            isReimbursed: false, hasReserveActivity: false, isUnlinkedTransfer: true).contains(.links))
     }
 
     @Test func editExpandsLinksWhenLinked() {
         #expect(TransactionDetailSection.initialExpansion(
             focus: .edit, isUncategorized: false, hasNotes: false,
-            isReimbursed: false, isUsed: false, hasLinks: true).contains(.links))
+            isReimbursed: false, hasReserveActivity: false, hasLinks: true).contains(.links))
     }
 
     @Test func editLeavesLinksCollapsedOtherwise() {
         #expect(!TransactionDetailSection.initialExpansion(
             focus: .edit, isUncategorized: true, hasNotes: true,
-            isReimbursed: true, isUsed: true).contains(.links))
+            isReimbursed: true, hasReserveActivity: true).contains(.links))
     }
 }

@@ -25,7 +25,7 @@ struct TransactionDetailSheet: View {
         viewModel.transaction(withHash: currentHash) ?? request.fallback
     }
 
-    /// Reimbursement and Reserve links only exist for expenses.
+    /// Reimbursement links only exist for expenses.
     private var isExpense: Bool { transaction.effectiveType == .expense }
 
     var body: some View {
@@ -37,9 +37,9 @@ struct TransactionDetailSheet: View {
                     NotesSection(transaction: transaction, isExpanded: binding(.notes))
                     if isExpense {
                         ReimbursementSection(expense: transaction, isExpanded: binding(.reimbursement))
-                        if !viewModel.reserves.isEmpty {
-                            ReserveUseSection(expense: transaction, isExpanded: binding(.reserve))
-                        }
+                    }
+                    if !viewModel.reserves.isEmpty {
+                        ReserveActivitySection(transaction: transaction, isExpanded: binding(.reserve))
                     }
                     LinksSection(transaction: transaction, isExpanded: binding(.links), onOpen: open)
                 }
@@ -61,7 +61,7 @@ struct TransactionDetailSheet: View {
                 isUncategorized: tx.effectiveCategory == nil,
                 hasNotes: !(tx.effectiveNotes ?? "").isEmpty,
                 isReimbursed: viewModel.reimbursementLink(forExpense: tx.contentHash) != nil,
-                isUsed: viewModel.usedTransactionIDs.contains(tx.contentHash),
+                hasReserveActivity: !viewModel.reserveEvents(linkedTo: tx.contentHash).isEmpty,
                 isUnlinkedTransfer: Self.isTransfer(tx)
                     && !viewModel.links(for: tx.contentHash).contains(where: \.isLive),
                 hasLinks: !viewModel.links(for: tx.contentHash).isEmpty

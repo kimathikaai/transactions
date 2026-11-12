@@ -1,10 +1,11 @@
 import Foundation
 
-/// Immutable append-only ledger entry for a single reserve movement.
+/// Append-only ledger entry for a single reserve movement.
 /// Allocations add to the derived per-(reserve,account) balance; releases and
 /// uses subtract from it. A use additionally links a real expense
 /// transaction (via `transactionContentHash`) — it records money that was saved
-/// and then actually spent toward the goal. The sum of all events is the single
+/// and then actually spent toward the goal. Allocations and releases may link a
+/// transaction too, as provenance only (e.g. the paycheque behind an add). The sum of all events is the single
 /// source of truth for reservations. Persisted as one element of `reserveEvents.json`.
 enum ReserveEventType: String, Codable {
     case allocation
@@ -39,9 +40,11 @@ struct ReserveEvent: Codable, Identifiable, Equatable, Hashable {
     var type: ReserveEventType
     var amount: Double
     var note: String?
-    /// contentHash of the linked expense transaction; set only on `.use`
-    /// events. Persisted as-is (no denormalized snapshot) and resolved to a live
-    /// transaction at display time — a dangling hash renders as "(unlinked)".
+    /// contentHash of the linked transaction. Required on `.use` (the expense
+    /// spent); optional provenance on `.allocation`/`.release`, settable and
+    /// clearable in place via `ReserveEventStore.setLink`. Persisted as-is (no
+    /// denormalized snapshot) and resolved to a live transaction at display
+    /// time — a dangling hash renders as "(unlinked)".
     var transactionContentHash: String?
 
     init(

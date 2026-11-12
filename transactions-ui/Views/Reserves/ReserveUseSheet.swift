@@ -9,7 +9,7 @@ import SwiftUI
 ///
 /// Opened from a reserve card: the reserve is fixed and the user picks the
 /// transaction (and source). The transactions-list side lives in the transaction
-/// modal's Reserve section (`ReserveUseSection`).
+/// modal's Reserve section (`ReserveActivitySection`).
 struct ReserveUseSheet: View {
     let reserve: Reserve
 
@@ -34,7 +34,7 @@ struct ReserveUseSheet: View {
         .frame(minWidth: 460)
         .presentationBackground(.clear)
         .sheet(isPresented: $showTxPicker) {
-            ExpenseTransactionPicker(
+            TransactionPicker(
                 transactions: viewModel.expenseTransactions,
                 linkedHashes: viewModel.usedTransactionIDs,
                 onSelect: { selectedTxHash = $0.id }

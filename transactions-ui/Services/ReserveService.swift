@@ -39,13 +39,15 @@ struct ReserveService {
     }
 
     /// Move `amount` from the account's free pool into the reserve by appending
-    /// an allocation event. Caller supplies `freeAvailable`.
+    /// an allocation event. Caller supplies `freeAvailable`. An optional
+    /// `transactionContentHash` records provenance only (no uniqueness check).
     func claim(
         amount: Double,
         from account: Account,
         freeAvailable: Double,
         to reserve: Reserve,
-        note: String?
+        note: String?,
+        transactionContentHash: String? = nil
     ) throws {
         guard amount > 0 else { throw ReserveError.invalidAmount }
         guard amount <= freeAvailable else {
@@ -55,19 +57,22 @@ struct ReserveService {
         }
         try eventStore.append(ReserveEvent(
             reserveID: reserve.id, accountID: account.id,
-            type: .allocation, amount: amount, note: note
+            type: .allocation, amount: amount, note: note,
+            transactionContentHash: transactionContentHash
         ))
     }
 
     /// Move `amount` back from the reserve to the account's free pool by
     /// appending a release event. Caller supplies the per-(reserve,account)
-    /// available headroom.
+    /// available headroom. An optional `transactionContentHash` records
+    /// provenance only.
     func release(
         amount: Double,
         from reserve: Reserve,
         to account: Account,
         availableForAccountInReserve available: Double,
-        note: String?
+        note: String?,
+        transactionContentHash: String? = nil
     ) throws {
         guard amount > 0 else { throw ReserveError.invalidAmount }
         guard amount <= available else {
@@ -78,7 +83,8 @@ struct ReserveService {
         }
         try eventStore.append(ReserveEvent(
             reserveID: reserve.id, accountID: account.id,
-            type: .release, amount: amount, note: note
+            type: .release, amount: amount, note: note,
+            transactionContentHash: transactionContentHash
         ))
     }
 

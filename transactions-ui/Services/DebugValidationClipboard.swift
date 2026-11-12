@@ -34,8 +34,10 @@ enum DebugValidationClipboard {
         return encode(objects)
     }
 
-    static func danglingUseLinksJSON(_ items: [AppViewModel.DanglingUseLink]) -> String {
-        let objects = items.map { ["reserve": $0.reserveName, "contentHash": $0.contentHash] }
+    static func danglingReserveLinksJSON(_ items: [AppViewModel.DanglingReserveLink]) -> String {
+        let objects = items.map {
+            ["reserve": $0.reserveName, "type": $0.type.rawValue, "contentHash": $0.contentHash]
+        }
         return encode(objects)
     }
 

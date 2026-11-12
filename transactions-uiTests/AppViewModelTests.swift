@@ -701,6 +701,158 @@ struct AppViewModelTests {
         #expect(row.linkedDate == nil)
     }
 
+    // MARK: - Reserve activity links
+
+    /// Pre-seed an allocation carrying a hash no live transaction will produce.
+    private func makeVMWithGhostAllocation(dir: TempDataDirectory, note: String? = nil) throws -> AppViewModel {
+        let acct = Account(id: UUID(), name: "Savings", type: .savings,
+                           initialBalance: 2_000, csvFileName: "sav_\(UUID().uuidString).csv")
+        let reserve = Reserve(id: UUID(), name: "Tithe", emoji: "🙏", colorHex: "#80b1d3")
+        try AccountStore(fileURL: dir.file("accounts.json")).upsert(acct)
+        try ReserveStore(fileURL: dir.file("reserves.json")).upsert(reserve)
+        try AtomicJSONFile.save([
+            ReserveEvent(reserveID: reserve.id, accountID: acct.id, type: .allocation, amount: 100,
+                         note: note, transactionContentHash: "ghost-hash"),
+        ], to: dir.file("reserveEvents.json"))
+        return makeVM(dir: dir)
+    }
+
+    @Test("claim stores an optional transaction link")
+    func claimStoresOptionalLink() throws {
+        let dir = TempDataDirectory()
+        let (vm, acct, reserve, txHash) = try makeVMWithExpense(dir: dir)
+        try vm.claim(amount: 100, from: acct, to: reserve, note: nil, transactionContentHash: txHash)
+
+        let event = try #require(vm.reserveEvents.last)
+        #expect(event.type == .allocation)
+        #expect(event.transactionContentHash == txHash)
+        let row = try #require(vm.reserveActivity.first { $0.id == event.id })
+        #expect(row.linkedDetails == "COFFEE SHOP")
+    }
+
+    @Test("release stores an optional transaction link")
+    func releaseStoresOptionalLink() throws {
+        let dir = TempDataDirectory()
+        let (vm, acct, reserve, txHash) = try makeVMWithExpense(dir: dir)
+        try vm.release(amount: 50, from: reserve, to: acct, note: nil, transactionContentHash: txHash)
+
+        let event = try #require(vm.reserveEvents.last)
+        #expect(event.type == .release)
+        #expect(event.transactionContentHash == txHash)
+        #expect(total(of: reserve.id, reservations: vm.reservations) == 450)
+    }
+
+    @Test("one transaction can back many add/release activities without being used")
+    func oneTransactionBacksManyActivities() throws {
+        let dir = TempDataDirectory()
+        let (vm, acct, reserve, txHash) = try makeVMWithExpense(dir: dir)
+        try vm.claim(amount: 100, from: acct, to: reserve, note: nil, transactionContentHash: txHash)
+        try vm.claim(amount: 100, from: acct, to: reserve, note: nil, transactionContentHash: txHash)
+        try vm.release(amount: 30, from: reserve, to: acct, note: nil, transactionContentHash: txHash)
+
+        #expect(vm.reserveEvents(linkedTo: txHash).count == 3)
+        #expect(vm.usedTransactionIDs.isEmpty)
+    }
+
+    @Test("an expense linked to an allocation can still be used")
+    func allocationLinkDoesNotBlockUse() throws {
+        let dir = TempDataDirectory()
+        let (vm, acct, reserve, txHash) = try makeVMWithExpense(dir: dir)
+        try vm.claim(amount: 100, from: acct, to: reserve, note: nil, transactionContentHash: txHash)
+        try vm.use(amount: 50, from: acct, on: reserve, transactionContentHash: txHash, note: nil)
+
+        #expect(vm.reserveEvents(linkedTo: txHash).count == 2)
+        #expect(vm.usageEvent(forExpense: txHash)?.type == .use)
+    }
+
+    @Test("setReserveEventLink persists across instances")
+    func setLinkPersistsAcrossInstances() throws {
+        let dir = TempDataDirectory()
+        let (vm, _, _, txHash) = try makeVMWithExpense(dir: dir)
+        let allocation = try #require(vm.reserveEvents.first { $0.type == .allocation })
+
+        #expect(vm.setReserveEventLink(eventID: allocation.id, hash: txHash))
+
+        let vm2 = makeVM(dir: dir)
+        #expect(vm2.reserveEvents.first { $0.id == allocation.id }?.transactionContentHash == txHash)
+    }
+
+    @Test("clearing an allocation's link keeps the event and balances")
+    func clearingLinkKeepsBalances() throws {
+        let dir = TempDataDirectory()
+        let (vm, _, reserve, txHash) = try makeVMWithExpense(dir: dir)
+        let allocation = try #require(vm.reserveEvents.first { $0.type == .allocation })
+        #expect(vm.setReserveEventLink(eventID: allocation.id, hash: txHash))
+
+        #expect(vm.setReserveEventLink(eventID: allocation.id, hash: nil))
+
+        let event = try #require(vm.reserveEvents.first { $0.id == allocation.id })
+        #expect(event.transactionContentHash == nil)
+        #expect(total(of: reserve.id, reservations: vm.reservations) == 500)
+    }
+
+    @Test("setReserveEventLink refuses a use event")
+    func setLinkRefusesUse() throws {
+        let dir = TempDataDirectory()
+        let (vm, acct, reserve, txHash) = try makeVMWithExpense(dir: dir)
+        try vm.use(amount: 50, from: acct, on: reserve, transactionContentHash: txHash, note: nil)
+        let useEvent = try #require(vm.reserveEvents.first { $0.type == .use })
+
+        #expect(vm.setReserveEventLink(eventID: useEvent.id, hash: nil) == false)
+        #expect(vm.reserveEvents.first { $0.id == useEvent.id }?.transactionContentHash == txHash)
+    }
+
+    @Test("setReserveEventLink returns false for an unknown event")
+    func setLinkUnknownEventReturnsFalse() throws {
+        let dir = TempDataDirectory()
+        let (vm, _, _, txHash) = try makeVMWithExpense(dir: dir)
+        let before = vm.reserveEvents
+
+        #expect(vm.setReserveEventLink(eventID: UUID(), hash: txHash) == false)
+        #expect(vm.reserveEvents == before)
+    }
+
+    @Test("danglingReserveLinks covers allocations whose transaction no longer resolves")
+    func danglingCoversAllocation() throws {
+        let dir = TempDataDirectory()
+        let vm = try makeVMWithGhostAllocation(dir: dir)
+
+        let dangling = try #require(vm.danglingReserveLinks.first)
+        #expect(vm.danglingReserveLinks.count == 1)
+        #expect(dangling.type == .allocation)
+        #expect(dangling.contentHash == "ghost-hash")
+        #expect(dangling.reserveName == "Tithe")
+    }
+
+    @Test("a linked allocation's activity info is the linked transaction")
+    func infoLinkedForAllocation() throws {
+        let dir = TempDataDirectory()
+        let (vm, acct, reserve, txHash) = try makeVMWithExpense(dir: dir)
+        try vm.claim(amount: 100, from: acct, to: reserve, note: "pay", transactionContentHash: txHash)
+
+        let row = try #require(vm.reserveActivity.first { $0.transactionContentHash == txHash })
+        #expect(row.info == .linked(details: "COFFEE SHOP"))
+    }
+
+    @Test("an unlinked activity's info is its note")
+    func infoNoteWhenUnlinked() throws {
+        let dir = TempDataDirectory()
+        let (vm, acct, reserve, _) = try makeVMWithExpense(dir: dir)
+        try vm.claim(amount: 100, from: acct, to: reserve, note: "trip")
+
+        let row = try #require(vm.reserveActivity.first { $0.note == "trip" })
+        #expect(row.info == .note("trip"))
+    }
+
+    @Test("a dangling link wins over the note in activity info")
+    func infoPrefersDanglingOverNote() throws {
+        let dir = TempDataDirectory()
+        let vm = try makeVMWithGhostAllocation(dir: dir, note: "pay")
+
+        let row = try #require(vm.reserveActivity.first)
+        #expect(row.info == .dangling)
+    }
+
     // MARK: - Categories
 
     @Test("AppViewModel loads categories.json into `categories` on init")

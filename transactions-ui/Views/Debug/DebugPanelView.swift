@@ -25,7 +25,7 @@ struct DebugPanelView: View {
                 categoryBrokenEditsSection
                 categoryStructuralSection
                 categoryStaleRefsSection
-                danglingUseLinksSection
+                danglingReserveLinksSection
                 danglingReimbursementLinksSection
                 danglingTransactionLinksSection
                 storePathSection
@@ -215,23 +215,23 @@ struct DebugPanelView: View {
         }
     }
 
-    private var danglingUseLinksSection: some View {
+    private var danglingReserveLinksSection: some View {
         section(
-            title: "Dangling use links",
-            description: "Use activity whose linked transaction no longer resolves."
+            title: "Dangling reserve links",
+            description: "Reserve activity whose linked transaction no longer resolves."
         ) {
-            let items = viewModel.danglingUseLinks
+            let items = viewModel.danglingReserveLinks
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Spacer()
                     Button("Copy") {
-                        copyString(DebugValidationClipboard.danglingUseLinksJSON(items))
+                        copyString(DebugValidationClipboard.danglingReserveLinksJSON(items))
                     }
                     .buttonStyle(.bordered)
                     .disabled(items.isEmpty)
                 }
                 if items.isEmpty {
-                    Text("No dangling use links.").font(.caption).foregroundStyle(.secondary)
+                    Text("No dangling reserve links.").font(.caption).foregroundStyle(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(items) { link in
@@ -239,7 +239,8 @@ struct DebugPanelView: View {
                                 Text(String(link.contentHash.prefix(8)))
                                     .font(.caption.monospaced())
                                 Spacer()
-                                Text(link.reserveName).font(.caption).foregroundStyle(.secondary)
+                                Text("\(link.type.rawValue) · \(link.reserveName)")
+                                    .font(.caption).foregroundStyle(.secondary)
                             }
                         }
                     }

@@ -25,7 +25,7 @@ enum TransactionDetailSection: Hashable {
         isUncategorized: Bool,
         hasNotes: Bool,
         isReimbursed: Bool,
-        isUsed: Bool,
+        hasReserveActivity: Bool,
         isUnlinkedTransfer: Bool = false,
         hasLinks: Bool = false
     ) -> Set<TransactionDetailSection> {
@@ -39,7 +39,7 @@ enum TransactionDetailSection: Hashable {
             if isUncategorized { sections.insert(.category) }
             if hasNotes { sections.insert(.notes) }
             if isReimbursed { sections.insert(.reimbursement) }
-            if isUsed { sections.insert(.reserve) }
+            if hasReserveActivity { sections.insert(.reserve) }
             if isUnlinkedTransfer || hasLinks { sections.insert(.links) }
             return sections
         }

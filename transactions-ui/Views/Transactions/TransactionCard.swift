@@ -165,11 +165,11 @@ struct TransactionCard<Actions: View>: View {
                 statusIcons
                     .frame(width: 30, alignment: .trailing)
 
-                Text(formattedAmount)
+                Text(snapshot.signedAmountText)
                     .font(.caption)
                     .fontWeight(.semibold)
                     .monospacedDigit()
-                    .foregroundStyle(amountColor)
+                    .foregroundStyle(snapshot.amountTint)
                     .fixedSize()   // never compress or wrap the amount
                     .layoutPriority(2)
             }
@@ -275,25 +275,6 @@ struct TransactionCard<Actions: View>: View {
             return "\(categoryName) · \(subName)"
         }
         return categoryName
-    }
-
-    private var formattedAmount: String {
-        let value = abs(snapshot.effectiveAmount)
-        let formatted = value.formatted(.cad)
-        switch snapshot.effectiveType {
-        case .expense, .transfer_out:
-            return "-\(formatted)"
-        case .income, .transfer_in:
-            return formatted
-        }
-    }
-
-    private var amountColor: Color {
-        switch snapshot.effectiveType {
-        case .income: .income
-        case .expense: .expense
-        case .transfer_in, .transfer_out: .gray
-        }
     }
 }
 

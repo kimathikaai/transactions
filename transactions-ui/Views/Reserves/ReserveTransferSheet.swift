@@ -6,6 +6,8 @@ import SwiftUI
 ///   - `.allocate`  →  [Source] → [Reserve]   (money into the reserve)
 ///   - `.release`   →  [Reserve] → [Source]   (money back out to the source)
 /// The reserve is fixed (the card that opened the sheet); only the source is picked.
+/// A transaction may optionally be linked as provenance (e.g. the paycheque behind
+/// an add); it never sets or limits the amount.
 struct ReserveTransferSheet: View {
     enum Mode {
         case allocate, release
@@ -27,6 +29,8 @@ struct ReserveTransferSheet: View {
     @State private var transferAmount: Double = 0
     @State private var errorMessage: String?
     @State private var note: String = ""
+    @State private var linkedTxHash: String?
+    @State private var showTxPicker = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -37,6 +41,14 @@ struct ReserveTransferSheet: View {
         .padding(20)
         .frame(minWidth: 460)
         .presentationBackground(.clear)
+        .sheet(isPresented: $showTxPicker) {
+            TransactionPicker(
+                transactions: viewModel.transactionsByDateDesc,
+                linkedHashes: [],
+                onSelect: { linkedTxHash = $0.id }
+            )
+            .environment(viewModel)
+        }
     }
 
     // MARK: - Resolved selections
@@ -139,6 +151,9 @@ struct ReserveTransferSheet: View {
                 .textFieldStyle(.plain)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+
+            Divider()
+            transactionField
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -146,6 +161,57 @@ struct ReserveTransferSheet: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(.regularMaterial)
         )
+    }
+
+    /// The optionally linked transaction (for display), when one is chosen.
+    private var linkedTx: TransactionSnapshot? {
+        guard let hash = linkedTxHash else { return nil }
+        return viewModel.transactionsByDateDesc.first { $0.id == hash }
+    }
+
+    // Tappable row that opens the transaction picker; × clears the link.
+    private var transactionField: some View {
+        HStack {
+            Button {
+                showTxPicker = true
+            } label: {
+                HStack {
+                    if let tx = linkedTx {
+                        Image(systemName: "link")
+                            .foregroundStyle(.secondary)
+                        Text(tx.details)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 8)
+                        Text(tx.signedAmountText)
+                            .monospacedDigit()
+                            .foregroundStyle(tx.amountTint)
+                    } else {
+                        Text("Link a transaction (optional)")
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if linkedTx != nil {
+                Button {
+                    linkedTxHash = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Remove the linked transaction")
+            }
+        }
+        .font(.callout)
     }
 
     private func availabilityCaption(_ available: Double) -> String {
@@ -183,9 +249,11 @@ struct ReserveTransferSheet: View {
         do {
             switch mode {
             case .allocate:
-                try viewModel.claim(amount: transferAmount, from: source, to: reserve, note: noteValue)
+                try viewModel.claim(amount: transferAmount, from: source, to: reserve, note: noteValue,
+                                    transactionContentHash: linkedTxHash)
             case .release:
-                try viewModel.release(amount: transferAmount, from: reserve, to: source, note: noteValue)
+                try viewModel.release(amount: transferAmount, from: reserve, to: source, note: noteValue,
+                                      transactionContentHash: linkedTxHash)
             }
             dismiss()
         } catch let err as ReserveError {
