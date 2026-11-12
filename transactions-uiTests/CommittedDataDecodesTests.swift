@@ -27,4 +27,9 @@ struct CommittedDataDecodesTests {
     @Test func editsFileDecodes() throws {
         _ = try AtomicJSONFile.load([String: TransactionEdit].self, from: DataPaths.editsFile(for: .demo))
     }
+
+    @Test func linksFileDecodes() throws {
+        let file = try AtomicJSONFile.load(LinksFile.self, from: DataPaths.linksFile(for: .demo))
+        #expect(file != nil)
+    }
 }

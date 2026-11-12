@@ -1,6 +1,37 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// The list's Type filter: every type, one type, or both transfer directions.
+enum TypeFilter: Hashable {
+    case any
+    case only(TransactionType)
+    case transfers
+
+    func matches(_ type: TransactionType) -> Bool {
+        switch self {
+        case .any:             return true
+        case .only(let only):  return type == only
+        case .transfers:       return type == .transfer_in || type == .transfer_out
+        }
+    }
+}
+
+/// The list's Links filter. Linked means at least one live link (auto or
+/// manual); a dangling link counts as unlinked.
+enum LinkFilter: Hashable {
+    case all
+    case linked
+    case unlinked
+
+    func matches(_ snap: TransactionSnapshot) -> Bool {
+        switch self {
+        case .all:      return true
+        case .linked:   return snap.isLinked
+        case .unlinked: return !snap.isLinked
+        }
+    }
+}
+
 /// The Transactions page: Expenses / Income breakdowns side by side on top, then the
 /// transaction list with the vertical month range chart to its right. Income and Month Range
 /// share one fixed-width right column; Expenses and the list take the rest. There are no
@@ -12,7 +43,8 @@ struct TransactionSplitView: View {
     @State private var dateFrom: Date = .distantPast
     @State private var dateTo: Date = .now
     @State private var selectedAccount: Account? = nil
-    @State private var selectedType: TransactionType? = nil
+    @State private var selectedType: TypeFilter = .any
+    @State private var linkFilter: LinkFilter = .all
     @State private var selectedCategory: CategoryID? = nil
     @State private var selectedSubcategory: SubcategoryID? = nil
     @State private var initialized = false
@@ -67,7 +99,8 @@ struct TransactionSplitView: View {
 
     private var hasActiveFilters: Bool {
         selectedAccount != nil
-            || selectedType != nil
+            || selectedType != .any
+            || linkFilter != .all
             || selectedCategory != nil
             || selectedSubcategory != nil
     }
@@ -78,7 +111,7 @@ struct TransactionSplitView: View {
     }
 
     /// Filters shared by the transaction list and the flow chart: account, category
-    /// (+ subcategory), and search. The list layers date-range and type on top; the chart
+    /// (+ subcategory), and search. The list layers date-range, type and links on top; the chart
     /// omits those by design (it spans every month and draws both income + expense).
     private func matchesSharedFilters(_ snap: TransactionSnapshot) -> Bool {
         if let id = selectedAccount?.id, snap.accountID != id { return false }
@@ -99,7 +132,8 @@ struct TransactionSplitView: View {
         let lowerBound = dateFrom
         let filtered = viewModel.transactionsByDateDesc.filter { snap in
             guard matchesSharedFilters(snap) else { return false }
-            if let type = selectedType, snap.effectiveType != type { return false }
+            if !selectedType.matches(snap.effectiveType) { return false }
+            if !linkFilter.matches(snap) { return false }
             if snap.date < lowerBound || snap.date >= upperBound { return false }
             return true
         }
@@ -199,6 +233,7 @@ struct TransactionSplitView: View {
             recomputeChartMetrics()
         }
         .onChange(of: selectedType) { recomputeFilteredTransactions() }
+        .onChange(of: linkFilter) { recomputeFilteredTransactions() }
         .onChange(of: selectedCategory) {
             recomputeFilteredTransactions()
             recomputeChartMetrics()
@@ -275,6 +310,7 @@ struct TransactionSplitView: View {
                         TransactionCard(
                             snapshot: snap,
                             onCategoryTap: { openDetail(snap, focus: .category) },
+                            onLinkTap: { openDetail(snap, focus: .links) },
                             onTap: { openDetail(snap, focus: .edit) }
                         ) {
                             menuItems(for: snap)
@@ -306,6 +342,9 @@ struct TransactionSplitView: View {
     private func menuItems(for snap: TransactionSnapshot) -> some View {
         Button("Edit", systemImage: "pencil") { openDetail(snap, focus: .edit) }
         Button("Change Category", systemImage: "tag") { openDetail(snap, focus: .category) }
+        Button(snap.isLinked ? "View Links" : "Link…", systemImage: "link") {
+            openDetail(snap, focus: .links)
+        }
         if snap.effectiveType == .expense {
             if viewModel.reimbursedExpenseHashes.contains(snap.id) {
                 Button("View Reimbursement", systemImage: "link") {
@@ -448,12 +487,15 @@ struct TransactionSplitView: View {
         }
 
         Menu("Type") {
-            checkmarkRow("All Types", isSelected: selectedType == nil) {
-                selectedType = nil
+            checkmarkRow("All Types", isSelected: selectedType == .any) {
+                selectedType = .any
+            }
+            checkmarkRow("Transfers", isSelected: selectedType == .transfers) {
+                selectedType = .transfers
             }
             ForEach(TransactionType.allCases) { type in
-                checkmarkRow(type.displayName, isSelected: selectedType == type) {
-                    selectedType = type
+                checkmarkRow(type.displayName, isSelected: selectedType == .only(type)) {
+                    selectedType = .only(type)
                 }
             }
         }
@@ -502,6 +544,12 @@ struct TransactionSplitView: View {
             }
         }
 
+        Menu("Links") {
+            checkmarkRow("All", isSelected: linkFilter == .all) { linkFilter = .all }
+            checkmarkRow("Linked", isSelected: linkFilter == .linked) { linkFilter = .linked }
+            checkmarkRow("Unlinked", isSelected: linkFilter == .unlinked) { linkFilter = .unlinked }
+        }
+
         Menu("Sort") {
             sortRow(.date)
             sortRow(.description)
@@ -518,7 +566,8 @@ struct TransactionSplitView: View {
     private func resetFilters() {
         setDefaultDateRange()
         selectedAccount = nil
-        selectedType = nil
+        selectedType = .any
+        linkFilter = .all
         selectedCategory = nil
         selectedSubcategory = nil
         searchText = ""

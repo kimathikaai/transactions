@@ -27,6 +27,7 @@ struct DebugPanelView: View {
                 categoryStaleRefsSection
                 danglingUseLinksSection
                 danglingReimbursementLinksSection
+                danglingTransactionLinksSection
                 storePathSection
                 resetSection
 
@@ -285,6 +286,41 @@ struct DebugPanelView: View {
         case (true, true):  return "expense + source missing"
         case (true, false): return "expense missing"
         default:            return "source missing"
+        }
+    }
+
+    private var danglingTransactionLinksSection: some View {
+        section(
+            title: "Dangling transaction links",
+            description: "Manual links where one side no longer resolves. They stay until unlinked in the transaction's Links section."
+        ) {
+            let items = viewModel.danglingLinks
+            if items.isEmpty {
+                Text("No dangling transaction links.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(items.count) links reference missing transactions")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    ForEach(items) { link in
+                        HStack(spacing: 12) {
+                            Text("\(link.hashA.prefix(8)) ↔ \(link.hashB.prefix(8))")
+                                .font(.caption.monospaced())
+                            Spacer()
+                            Text(missingLabel(for: link)).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func missingLabel(for link: TransactionLink) -> String {
+        switch (viewModel.transaction(withHash: link.hashA) == nil,
+                viewModel.transaction(withHash: link.hashB) == nil) {
+        case (true, true):  return "both missing"
+        case (true, false): return "\(link.hashA.prefix(8)) missing"
+        default:            return "\(link.hashB.prefix(8)) missing"
         }
     }
 

@@ -80,6 +80,9 @@ enum DataPaths {
     static func reimbursementsFile(for profile: DataProfile) -> URL {
         dataDirectory(for: profile).appendingPathComponent("reimbursements.json")
     }
+    static func linksFile(for profile: DataProfile) -> URL {
+        dataDirectory(for: profile).appendingPathComponent("links.json")
+    }
     static func categoriesFile(for profile: DataProfile) -> URL {
         dataDirectory(for: profile).appendingPathComponent("categories.json")
     }
@@ -98,6 +101,7 @@ enum DataPaths {
     static var reserveEventsFile: URL { reserveEventsFile(for: .real) }
     static var editsFile: URL      { editsFile(for: .real) }
     static var reimbursementsFile: URL { reimbursementsFile(for: .real) }
+    static var linksFile: URL      { linksFile(for: .real) }
     static var categoriesFile: URL { categoriesFile(for: .real) }
 
     static func csvFile(named name: String) -> URL {

@@ -59,6 +59,11 @@ struct TransactionSnapshot: Identifiable {
     let isEdited: Bool
     let isReimbursed: Bool
     let isUsed: Bool
+    /// Has at least one live link (auto or manual). Defaulted so fixtures and
+    /// previews that predate links still build.
+    var isLinked: Bool = false
+    /// Has a live `transfer` link (auto or manual) — tints the row's link glyph.
+    var hasTransferLink: Bool = false
 }
 
 extension TransactionSnapshot {
@@ -97,6 +102,7 @@ final class AppViewModel {
     private var editStore: EditStore
     private var categoryStore: CategoryStore
     private var reimbursementStore: ReimbursementStore
+    private var linkStore: LinkStore
     private var csvDirectory: URL
 
     /// The data folder currently loaded. Set by the profile-aware initializer
@@ -114,6 +120,10 @@ final class AppViewModel {
     /// Materialized from `reimbursementStore` on load/mutation (mirroring how
     /// `reservations` is derived) so `@Observable` reactivity fires.
     private(set) var reimbursementLinks: [String: ReimbursementLink] = [:]
+    /// Every link touching a transaction, keyed by its contentHash: manual links
+    /// from `linkStore` plus the transfer auto-pairs, which are recomputed by
+    /// `rebuildLinks()` and never persisted.
+    private(set) var linksByHash: [String: [ResolvedLink]] = [:]
     private(set) var allTransactions: [Transaction] = []
     private(set) var transactionsByDateDesc: [TransactionSnapshot] = []
     private(set) var monthlyMetrics: [MonthlyMetric] = []
@@ -141,6 +151,7 @@ final class AppViewModel {
         editStore: EditStore = EditStore(fileURL: DataPaths.editsFile),
         categoryStore: CategoryStore = CategoryStore(fileURL: DataPaths.categoriesFile),
         reimbursementStore: ReimbursementStore = ReimbursementStore(fileURL: DataPaths.reimbursementsFile),
+        linkStore: LinkStore = LinkStore(fileURL: DataPaths.linksFile),
         csvDirectory: URL = DataPaths.csvDirectory(for: .real)
     ) {
         self.accountStore = accountStore
@@ -149,6 +160,7 @@ final class AppViewModel {
         self.editStore = editStore
         self.categoryStore = categoryStore
         self.reimbursementStore = reimbursementStore
+        self.linkStore = linkStore
         self.csvDirectory = csvDirectory
         loadEverything()
     }
@@ -163,6 +175,7 @@ final class AppViewModel {
             editStore: EditStore(fileURL: DataPaths.editsFile(for: profile)),
             categoryStore: CategoryStore(fileURL: DataPaths.categoriesFile(for: profile)),
             reimbursementStore: ReimbursementStore(fileURL: DataPaths.reimbursementsFile(for: profile)),
+            linkStore: LinkStore(fileURL: DataPaths.linksFile(for: profile)),
             csvDirectory: DataPaths.csvDirectory(for: profile)
         )
         self.activeProfile = profile
@@ -182,6 +195,7 @@ final class AppViewModel {
         editStore = EditStore(fileURL: DataPaths.editsFile(for: profile))
         categoryStore = CategoryStore(fileURL: DataPaths.categoriesFile(for: profile))
         reimbursementStore = ReimbursementStore(fileURL: DataPaths.reimbursementsFile(for: profile))
+        linkStore = LinkStore(fileURL: DataPaths.linksFile(for: profile))
         csvDirectory = DataPaths.csvDirectory(for: profile)
         activeProfile = profile
         DataProfile.persist(profile)
@@ -233,6 +247,11 @@ final class AppViewModel {
         } catch {
             loadWarnings.append(LoadWarning(scope: "reimbursements", message: "\(error)"))
         }
+        do {
+            try linkStore.load()
+        } catch {
+            loadWarnings.append(LoadWarning(scope: "links", message: "\(error)"))
+        }
 
         accounts = accountStore.accounts
         reserves = reserveStore.reserves
@@ -260,6 +279,7 @@ final class AppViewModel {
         let ms = Int(Date().timeIntervalSince(start) * 1000)
         print("[AppViewModel] loadEverything: \(ms) ms")
 
+        rebuildLinks()
         rebuildTransactionSnapshots()
         monthlyMetrics = computeMonthlyMetrics()
         dataVersion &+= 1
@@ -317,6 +337,7 @@ final class AppViewModel {
         let accountByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
         let reimbursed = reimbursedExpenseHashes          // capture once; property rebuilds a Set per access
         let used = usedTransactionIDs                     // capture once; property rebuilds a Set per access
+        let links = linksByHash
         for tx in txs.reversed() {
             let acct = accountByID[tx.accountID]
             snapshots.append(TransactionSnapshot(
@@ -333,7 +354,9 @@ final class AppViewModel {
                 notes: tx.effectiveNotes,
                 isEdited: tx.edit != nil,
                 isReimbursed: reimbursed.contains(tx.contentHash),
-                isUsed: used.contains(tx.contentHash)
+                isUsed: used.contains(tx.contentHash),
+                isLinked: links[tx.contentHash]?.contains(where: \.isLive) ?? false,
+                hasTransferLink: links[tx.contentHash]?.contains { $0.isLive && $0.kind == .transfer } ?? false
             ))
         }
         transactionsByDateDesc = snapshots
@@ -357,6 +380,7 @@ final class AppViewModel {
         )
         reservations = kept
         reimbursementLinks = reimbursementStore.links
+        rebuildLinks()
         rebuildTransactionSnapshots()
         monthlyMetrics = computeMonthlyMetrics()
         dataVersion &+= 1
@@ -887,10 +911,21 @@ final class AppViewModel {
         details: String,
         into account: Account
     ) -> Bool {
+        appendManualTransaction(date: date, signedAmount: signedAmount, details: details, into: account) != nil
+    }
+
+    /// `addManualTransaction`, returning the new row's contentHash (nil on any
+    /// failure) so Create & link can find the row it just wrote.
+    func appendManualTransaction(
+        date: Date,
+        signedAmount: Double,
+        details: String,
+        into account: Account
+    ) -> String? {
         let sanitized = details.replacingOccurrences(of: "\"", with: "")
         guard signedAmount != 0,
               !sanitized.trimmingCharacters(in: .whitespaces).isEmpty else {
-            return false
+            return nil
         }
         let debit = signedAmount < 0 ? -signedAmount : 0
         let credit = signedAmount > 0 ? signedAmount : 0
@@ -898,7 +933,56 @@ final class AppViewModel {
         let debitField = debit == 0 ? "" : String(format: "%.2f", debit)
         let creditField = credit == 0 ? "" : String(format: "%.2f", credit)
         let rawLine = "\(dateString),\"\(sanitized)\",\(debitField),\(creditField)"
-        return commitAppend(addedRawLines: [rawLine], into: account)
+        guard commitAppend(addedRawLines: [rawLine], into: account) else { return nil }
+        return lastRowHash(in: account)
+    }
+
+    /// The contentHash of the account CSV's last row, rebuilt index-aligned with
+    /// the file (as `deleteTransaction` does) so the occurrence index matches.
+    private func lastRowHash(in account: Account) -> String? {
+        let csvURL = csvDirectory.appendingPathComponent(account.csvFileName)
+        do {
+            let csvString = try String(contentsOf: csvURL, encoding: .utf8)
+            let parsed = try BankCsvParser.parse(csvString: csvString)
+            let rebuilt = ImportPipeline.makeTransactions(
+                from: parsed.map(\.row),
+                accountID: account.id,
+                transferKeywords: GeneratedConfig.transferKeywords,
+                categories: categories
+            )
+            return rebuilt.last?.contentHash
+        } catch {
+            lastSaveError = error
+            return nil
+        }
+    }
+
+    /// Create & link: append the counterpart row to `account`, give it `type`
+    /// (a minimal type edit when the parsed type differs, e.g. a transfer whose
+    /// details carry no transfer keyword), then link it to `source` with the
+    /// kind inferred. `magnitude` is positive; the type sets the sign. A failed
+    /// step returns false with `lastSaveError` set; the CSV row isn't rolled back.
+    @discardableResult
+    func createLinkedTransaction(
+        from source: Transaction,
+        into account: Account,
+        date: Date,
+        amount magnitude: Double,
+        details: String,
+        type: TransactionType,
+        note: String?
+    ) -> Bool {
+        let signedAmount = (type == .income || type == .transfer_in) ? abs(magnitude) : -abs(magnitude)
+        guard let hash = appendManualTransaction(date: date, signedAmount: signedAmount,
+                                                 details: details, into: account),
+              let created = transaction(withHash: hash)
+        else { return false }
+        if created.transactionType != type {
+            guard saveEdit(for: created, category: nil, subcategory: nil, notes: nil, transactionType: type)
+            else { return false }
+        }
+        guard let retyped = transaction(withHash: hash) else { return false }
+        return linkTransactions(source, retyped, note: note)
     }
 
     /// Delete one transaction by rewriting the account's CSV without its source
@@ -927,7 +1011,11 @@ final class AppViewModel {
             let joined = remaining.map(\.rawLine).joined(separator: "\n")
             let rawCsv = joined.isEmpty ? "" : joined + "\n"
             let ok = commitImport(diff: CSVDiff(added: [], removed: []), into: account, rawCsv: rawCsv)
-            if ok { clearEdit(for: transaction) }
+            if ok {
+                // Before clearEdit, so its refresh rebuilds the link index.
+                try linkStore.removeAll(mentioning: transaction.contentHash)
+                clearEdit(for: transaction)
+            }
             return ok
         } catch {
             lastSaveError = error
@@ -1032,13 +1120,14 @@ final class AppViewModel {
 
     /// A linked transaction's type can't change: re-typing would hide the
     /// modal's Reimbursement/Reserve sections while the links still exist. Covers
-    /// a reimbursed expense, a reserve-used expense, and an income that funds a
-    /// reimbursement.
+    /// a reimbursed expense, a reserve-used expense, an income that funds a
+    /// reimbursement, and either side of a live manual transfer link.
     func isTypeLocked(_ transaction: Transaction) -> Bool {
         let hash = transaction.contentHash
         return reimbursementLinks[hash] != nil
             || usedTransactionIDs.contains(hash)
             || claimed(forReimbursement: hash) > 0
+            || hasManualTransferLink(hash)
     }
 
     // MARK: - Reimbursement mutations
@@ -1100,6 +1189,152 @@ final class AppViewModel {
             lastSaveError = error
             return false
         }
+    }
+
+    // MARK: - Links
+
+    /// One link as seen from one of its two transactions.
+    struct ResolvedLink: Identifiable, Equatable {
+        enum Origin: Equatable {
+            case auto
+            case manual(UUID)
+        }
+        let pair: HashPair
+        let counterpartHash: String
+        let kind: LinkKind
+        let origin: Origin
+        let note: String?
+        /// Both sides resolve to a loaded transaction. A dangling link is shown
+        /// (so it can be unlinked) but counts as unlinked everywhere else.
+        let isLive: Bool
+
+        var id: String { pair.id }
+    }
+
+    /// Rebuilds `linksByHash` from the saved manual links plus a fresh run of
+    /// the transfer auto-pairer. In memory only — never writes.
+    private func rebuildLinks() {
+        let loaded = Set(allTransactions.map(\.contentHash))
+        var index: [String: [ResolvedLink]] = [:]
+        var blocked: Set<String> = []
+
+        for link in linkStore.links {
+            let pair = link.pair
+            let isLive = loaded.contains(pair.a) && loaded.contains(pair.b)
+            if isLive, link.kind == .transfer {
+                blocked.insert(pair.a)
+                blocked.insert(pair.b)
+            }
+            for side in [pair.a, pair.b] {
+                index[side, default: []].append(ResolvedLink(
+                    pair: pair, counterpartHash: pair.other(than: side), kind: link.kind,
+                    origin: .manual(link.id), note: link.note, isLive: isLive
+                ))
+            }
+        }
+
+        let excluded = Set(linkStore.rejections.map(\.pair)).union(linkStore.links.map(\.pair))
+        for pair in TransferAutoPairer.pairs(in: allTransactions, blocked: blocked, excludedPairs: excluded) {
+            for side in [pair.a, pair.b] {
+                index[side, default: []].append(ResolvedLink(
+                    pair: pair, counterpartHash: pair.other(than: side), kind: .transfer,
+                    origin: .auto, note: nil, isLive: true
+                ))
+            }
+        }
+
+        // Live first, then manual before auto; otherwise keep insertion order.
+        func rank(_ link: ResolvedLink) -> Int {
+            (link.isLive ? 0 : 2) + (link.origin == .auto ? 1 : 0)
+        }
+        linksByHash = index.mapValues { links in
+            links.enumerated()
+                .sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }
+                .map(\.element)
+        }
+    }
+
+    /// Every link touching the transaction, including dangling ones.
+    func links(for hash: String) -> [ResolvedLink] {
+        linksByHash[hash] ?? []
+    }
+
+    /// Whether the transaction has a live manual `transfer` link. Such a link
+    /// locks the type and takes the transaction out of auto-pairing.
+    func hasManualTransferLink(_ hash: String) -> Bool {
+        links(for: hash).contains { link in
+            guard link.isLive, link.kind == .transfer, case .manual = link.origin else { return false }
+            return true
+        }
+    }
+
+    /// The kind a manual link between the two would get (see `LinkKind.inferred`).
+    func inferredLinkKind(between x: Transaction, and y: Transaction) -> LinkKind {
+        LinkKind.inferred(
+            x, y,
+            eitherHasTransferLink: hasManualTransferLink(x.contentHash) || hasManualTransferLink(y.contentHash)
+        )
+    }
+
+    /// Manually link two transactions, with the kind inferred. Also backs Keep on
+    /// an auto-pair (it saves the pair as a manual link, which supersedes it).
+    /// Rejects a self-link or a pair that already has a manual link.
+    @discardableResult
+    func linkTransactions(_ x: Transaction, _ y: Transaction, note: String? = nil) -> Bool {
+        let first = transaction(withHash: x.contentHash) ?? x
+        let second = transaction(withHash: y.contentHash) ?? y
+        let pair = HashPair(first.contentHash, second.contentHash)
+        guard first.contentHash != second.contentHash else {
+            lastSaveError = NSError(domain: "Links", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "a transaction can't link to itself"])
+            return false
+        }
+        guard !linkStore.links.contains(where: { $0.pair == pair }) else {
+            lastSaveError = NSError(domain: "Links", code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "these transactions are already linked"])
+            return false
+        }
+        let trimmedNote = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let link = TransactionLink(
+            pair: pair,
+            kind: inferredLinkKind(between: first, and: second),
+            note: (trimmedNote?.isEmpty ?? true) ? nil : trimmedNote
+        )
+        do {
+            try linkStore.add(link)
+            refreshDerivedState()
+            lastSaveError = nil
+            return true
+        } catch {
+            lastSaveError = error
+            return false
+        }
+    }
+
+    /// Unlink applies at once: a manual link is deleted, and either way the pair
+    /// is saved as a rejection so the auto-pairer never proposes it again
+    /// (otherwise unlinking a kept transfer would bring it straight back as Auto).
+    @discardableResult
+    func unlink(_ link: ResolvedLink) -> Bool {
+        do {
+            switch link.origin {
+            case .manual(let id): try linkStore.unlink(id: id)
+            case .auto:           try linkStore.reject(link.pair)
+            }
+            refreshDerivedState()
+            lastSaveError = nil
+            return true
+        } catch {
+            lastSaveError = error
+            return false
+        }
+    }
+
+    /// Manual links where either side no longer resolves — listed in the
+    /// Developer tab. Never cleaned up automatically.
+    var danglingLinks: [TransactionLink] {
+        let loaded = Set(allTransactions.map(\.contentHash))
+        return linkStore.links.filter { !loaded.contains($0.hashA) || !loaded.contains($0.hashB) }
     }
 
     // MARK: - Category mutations

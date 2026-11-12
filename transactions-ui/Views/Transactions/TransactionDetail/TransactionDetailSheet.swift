@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// The one-stop transaction modal: the original bank row on top, then
-/// collapsible Category, Notes, Reimbursement and Reserve sections. Every change
-/// saves as it's made, and the modal re-reads its transaction by `contentHash`
-/// on each render, so it keeps showing live state even after the row drops out
-/// of the filtered list behind it.
+/// collapsible Category, Notes, Reimbursement, Reserve and Links sections. Every
+/// change saves as it's made, and the modal re-reads its transaction by
+/// `contentHash` on each render, so it keeps showing live state even after the
+/// row drops out of the filtered list behind it. Links' Open re-targets the
+/// modal at the counterpart.
 struct TransactionDetailSheet: View {
     @Environment(AppViewModel.self) private var viewModel
     @Environment(\.dismiss) private var dismiss
@@ -12,9 +13,16 @@ struct TransactionDetailSheet: View {
     let request: TransactionDetailRequest
 
     @State private var expanded: Set<TransactionDetailSection> = []
+    /// The transaction shown — starts at the request's, moves on Links' Open.
+    @State private var currentHash: String
+
+    init(request: TransactionDetailRequest) {
+        self.request = request
+        _currentHash = State(initialValue: request.hash)
+    }
 
     private var transaction: Transaction {
-        viewModel.transaction(withHash: request.hash) ?? request.fallback
+        viewModel.transaction(withHash: currentHash) ?? request.fallback
     }
 
     /// Reimbursement and Reserve links only exist for expenses.
@@ -33,7 +41,10 @@ struct TransactionDetailSheet: View {
                             ReserveUseSection(expense: transaction, isExpanded: binding(.reserve))
                         }
                     }
+                    LinksSection(transaction: transaction, isExpanded: binding(.links), onOpen: open)
                 }
+                // Re-targeting resets each section's local state (queries, selections, drafts).
+                .id(currentHash)
             }
             .scrollBounceBehavior(.basedOnSize)
             footer
@@ -50,9 +61,23 @@ struct TransactionDetailSheet: View {
                 isUncategorized: tx.effectiveCategory == nil,
                 hasNotes: !(tx.effectiveNotes ?? "").isEmpty,
                 isReimbursed: viewModel.reimbursementLink(forExpense: tx.contentHash) != nil,
-                isUsed: viewModel.usedTransactionIDs.contains(tx.contentHash)
+                isUsed: viewModel.usedTransactionIDs.contains(tx.contentHash),
+                isUnlinkedTransfer: Self.isTransfer(tx)
+                    && !viewModel.links(for: tx.contentHash).contains(where: \.isLive),
+                hasLinks: !viewModel.links(for: tx.contentHash).isEmpty
             )
         }
+    }
+
+    private static func isTransfer(_ tx: Transaction) -> Bool {
+        tx.effectiveType == .transfer_in || tx.effectiveType == .transfer_out
+    }
+
+    /// Links' Open: show the counterpart with its Links section expanded.
+    private func open(_ hash: String) {
+        viewModel.lastSaveError = nil
+        currentHash = hash
+        expanded = [.links]
     }
 
     private func binding(_ section: TransactionDetailSection) -> Binding<Bool> {

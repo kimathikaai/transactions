@@ -26,4 +26,28 @@ struct TransactionDetailLogicTests {
             focus: .reimbursement, isUncategorized: true, hasNotes: false,
             isReimbursed: false, isUsed: false) == [.reimbursement])
     }
+
+    @Test func linksFocusExpandsLinks() {
+        #expect(TransactionDetailSection.initialExpansion(
+            focus: .links, isUncategorized: true, hasNotes: true,
+            isReimbursed: false, isUsed: false, isUnlinkedTransfer: true, hasLinks: true) == [.links])
+    }
+
+    @Test func editExpandsLinksForUnlinkedTransfer() {
+        #expect(TransactionDetailSection.initialExpansion(
+            focus: .edit, isUncategorized: false, hasNotes: false,
+            isReimbursed: false, isUsed: false, isUnlinkedTransfer: true).contains(.links))
+    }
+
+    @Test func editExpandsLinksWhenLinked() {
+        #expect(TransactionDetailSection.initialExpansion(
+            focus: .edit, isUncategorized: false, hasNotes: false,
+            isReimbursed: false, isUsed: false, hasLinks: true).contains(.links))
+    }
+
+    @Test func editLeavesLinksCollapsedOtherwise() {
+        #expect(!TransactionDetailSection.initialExpansion(
+            focus: .edit, isUncategorized: true, hasNotes: true,
+            isReimbursed: true, isUsed: true).contains(.links))
+    }
 }

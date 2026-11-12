@@ -6,6 +6,7 @@ enum TransactionDetailFocus {
     case category
     case reimbursement
     case reserve
+    case links
 }
 
 /// The modal's collapsible sections (the original-transaction card is always shown).
@@ -14,26 +15,32 @@ enum TransactionDetailSection: Hashable {
     case notes
     case reimbursement
     case reserve
+    case links
 
     /// The chosen action's section alone; for plain Edit, the sections that need
-    /// attention (Category when uncategorized) or already hold something.
+    /// attention (Category when uncategorized, Links for a transfer with no live
+    /// link) or already hold something.
     static func initialExpansion(
         focus: TransactionDetailFocus,
         isUncategorized: Bool,
         hasNotes: Bool,
         isReimbursed: Bool,
-        isUsed: Bool
+        isUsed: Bool,
+        isUnlinkedTransfer: Bool = false,
+        hasLinks: Bool = false
     ) -> Set<TransactionDetailSection> {
         switch focus {
         case .category:      return [.category]
         case .reimbursement: return [.reimbursement]
         case .reserve:       return [.reserve]
+        case .links:         return [.links]
         case .edit:
             var sections: Set<TransactionDetailSection> = []
             if isUncategorized { sections.insert(.category) }
             if hasNotes { sections.insert(.notes) }
             if isReimbursed { sections.insert(.reimbursement) }
             if isUsed { sections.insert(.reserve) }
+            if isUnlinkedTransfer || hasLinks { sections.insert(.links) }
             return sections
         }
     }

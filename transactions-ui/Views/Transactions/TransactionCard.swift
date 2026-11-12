@@ -11,6 +11,14 @@ private let transactionCardDateFormatter: DateFormatter = {
     return fmt
 }()
 
+/// "Mar 2" for the link glyph's tooltip, in UTC like the row date.
+private let transactionCardShortDateFormatter: DateFormatter = {
+    let fmt = DateFormatter()
+    fmt.dateFormat = "MMM d"
+    fmt.timeZone = TimeZone(identifier: "UTC")
+    return fmt
+}()
+
 /// A transaction row. The category (icon + label) is a dedicated `Button` that opens
 /// the Change Category modal via `onCategoryTap` and highlights in its category color
 /// on hover; a left-click on the rest of the row (date, meta) opens the edit modal via
@@ -21,6 +29,8 @@ struct TransactionCard<Actions: View>: View {
     let snapshot: TransactionSnapshot
     /// Invoked on a left-click of the category region — opens the recategorize modal.
     let onCategoryTap: () -> Void
+    /// Invoked on a left-click of the link glyph — opens the modal at Links.
+    let onLinkTap: () -> Void
     /// Invoked on a left-click anywhere else on the row — opens the edit modal.
     let onTap: () -> Void
     /// The row's action items, shown in the right-click context menu.
@@ -32,6 +42,10 @@ struct TransactionCard<Actions: View>: View {
     private let notesMaxWidth: CGFloat = 160
     /// Cap for the details while hovering a row with notes; shorter details hug their text.
     private let detailsHoverMaxWidth: CGFloat = 240
+
+    /// Turns the compact hover layout below on or off. Off for now; the row's hover
+    /// highlight is unaffected.
+    private let isHoverLayoutEnabled = false
 
     /// While hovering, the row shows only date, category symbol, details and notes, so
     /// the details get the freed width (still one line, so row heights stay fixed).
@@ -71,7 +85,7 @@ struct TransactionCard<Actions: View>: View {
         }
         .contentShape(.rect(cornerRadius: 6))
         .hoverHighlight(in: .rect(cornerRadius: 6))
-        .onHover { isHovering = $0 }
+        .onHover { isHovering = isHoverLayoutEnabled && $0 }
         .contextMenu { menuActions() }
     }
 
@@ -145,6 +159,8 @@ struct TransactionCard<Actions: View>: View {
                 .help(notes)
             }
 
+            linkGlyph
+
             if !isHovering {
                 statusIcons
                     .frame(width: 30, alignment: .trailing)
@@ -199,6 +215,34 @@ struct TransactionCard<Actions: View>: View {
             }
         }
         .font(.caption)
+    }
+
+    /// The link glyph, a button that opens Links (accent for a transfer link).
+    /// Kept outside `statusIcons` because those hide while hovering, and this
+    /// one has to stay under the pointer to be clicked and show its tooltip.
+    @ViewBuilder private var linkGlyph: some View {
+        if snapshot.isLinked {
+            Button(action: onLinkTap) {
+                Image(systemName: "link")
+                    .foregroundStyle(snapshot.hasTransferLink ? Color.accentColor : .secondary)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .font(.caption)
+            .help(linkHelp)
+            .accessibilityLabel("Linked")
+        }
+    }
+
+    /// "Linked to TFSA · Mar 2 · $500.00" for one live link, else "N links".
+    private var linkHelp: String {
+        let live = viewModel.links(for: snapshot.id).filter(\.isLive)
+        guard live.count == 1,
+              let counterpart = viewModel.transaction(withHash: live[0].counterpartHash)
+        else { return "\(live.count) links" }
+        let account = viewModel.account(id: counterpart.accountID)?.name ?? "—"
+        let date = transactionCardShortDateFormatter.string(from: counterpart.date)
+        return "Linked to \(account) · \(date) · \(counterpart.effectiveAmount.formatted(.cad))"
     }
 
     private var categorySymbol: String {

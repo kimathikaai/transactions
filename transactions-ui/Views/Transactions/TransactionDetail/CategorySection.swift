@@ -90,7 +90,7 @@ struct CategorySection: View {
             .font(.callout)
             .disabled(locked)
             if locked {
-                Text("Unlink the reimbursement or reserve use to change the type.")
+                Text("Unlink the reimbursement, reserve use, or transfer link to change the type.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

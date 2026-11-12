@@ -15,6 +15,7 @@ struct CommitAppendTests {
             reserveStore: ReserveStore(fileURL: dir.file("reserves.json")),
             reserveEventStore: ReserveEventStore(fileURL: dir.file("reserveEvents.json")),
             editStore: EditStore(fileURL: dir.file("edits.json")),
+            linkStore: LinkStore(fileURL: dir.file("links.json")),
             csvDirectory: dir.url
         )
     }

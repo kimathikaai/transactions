@@ -13,6 +13,7 @@ struct AppViewModelTests {
             editStore: EditStore(fileURL: dir.file("edits.json")),
             categoryStore: CategoryStore(fileURL: dir.file("categories.json")),
             reimbursementStore: ReimbursementStore(fileURL: dir.file("reimbursements.json")),
+            linkStore: LinkStore(fileURL: dir.file("links.json")),
             csvDirectory: dir.file("csv")
         )
     }
