@@ -191,15 +191,20 @@ struct TransactionCard<Actions: View>: View {
     }
 
     /// Quiet trailing status glyphs describing what happened to this amount:
-    /// green u-turn = reimbursed, orange pencil = edited. Both render when a row
+    /// green u-turn = reimbursed (an expense paid back, or an income that pays
+    /// expenses back), orange pencil = edited. Both render when a row
     /// is both; the fixed-width slot keeps the amount column aligned when empty.
+    private var reimbursedLabel: String {
+        snapshot.effectiveType == .income ? "Covers reimbursements" : "Reimbursed"
+    }
+
     @ViewBuilder private var statusIcons: some View {
         HStack(spacing: 3) {
             if snapshot.isReimbursed {
                 Image(systemName: "arrow.uturn.backward")
                     .foregroundStyle(Color.income)
-                    .help("Reimbursed")
-                    .accessibilityLabel("Reimbursed")
+                    .help(reimbursedLabel)
+                    .accessibilityLabel(reimbursedLabel)
             }
             if snapshot.isEdited {
                 Image(systemName: "pencil")

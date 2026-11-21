@@ -1051,6 +1051,43 @@ struct AppViewModelTests {
         #expect(try expenseSnap().isReimbursed == false)
     }
 
+    // MARK: - Reimbursement, income side
+
+    @Test("reimbursementLinks(forIncome:) lists the expenses an income covers, in link order")
+    func reimbursementLinksForIncome() throws {
+        let dir = TempDataDirectory()
+        let links: [String: ReimbursementLink] = [
+            "second": ReimbursementLink(reimbursementHash: "inc", amount: 20,
+                                        linkedAt: Date(timeIntervalSince1970: 2_000)),
+            "first": ReimbursementLink(reimbursementHash: "inc", amount: 10,
+                                       linkedAt: Date(timeIntervalSince1970: 1_000)),
+            "other": ReimbursementLink(reimbursementHash: "other-inc", amount: 5)
+        ]
+        try AtomicJSONFile.save(links, to: dir.file("reimbursements.json"))
+        let vm = makeVM(dir: dir)
+
+        let covered = vm.reimbursementLinks(forIncome: "inc")
+        #expect(covered.map(\.expenseHash) == ["first", "second"])
+        #expect(covered.map(\.link.amount) == [10, 20])
+        #expect(vm.reimbursementLinks(forIncome: "unused").isEmpty)
+    }
+
+    @Test("an income that covers an expense carries the isReimbursed flag until unlinked")
+    func incomeSnapshotFlagFollowsClaims() throws {
+        let dir = TempDataDirectory()
+        let (vm, expense, income) = try makeVMWithExpenseAndIncome(dir: dir)
+
+        func incomeSnap() throws -> TransactionSnapshot {
+            try #require(vm.transactionsByDateDesc.first { $0.id == income.contentHash })
+        }
+
+        #expect(try incomeSnap().isReimbursed == false)
+        #expect(vm.linkReimbursement(expense: expense, toIncome: income))
+        #expect(try incomeSnap().isReimbursed == true)
+        #expect(vm.unlinkReimbursement(expenseHash: expense.contentHash))
+        #expect(try incomeSnap().isReimbursed == false)
+    }
+
     // MARK: - Reimbursement review table (US10)
 
     /// Boot a VM with one expense and one income transaction pre-seeded via a

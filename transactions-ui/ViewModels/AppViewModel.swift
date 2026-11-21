@@ -335,7 +335,9 @@ final class AppViewModel {
         var snapshots: [TransactionSnapshot] = []
         snapshots.reserveCapacity(txs.count)
         let accountByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
-        let reimbursed = reimbursedExpenseHashes          // capture once; property rebuilds a Set per access
+        // Both sides of a reimbursement carry the flag: the expense paid back and
+        // the income that paid it. Captured once; the properties rebuild a Set per access.
+        let reimbursed = reimbursedExpenseHashes.union(incomeHashesWithClaims)
         let used = usedTransactionIDs                     // capture once; property rebuilds a Set per access
         let links = linksByHash
         for tx in txs.reversed() {
@@ -572,6 +574,21 @@ final class AppViewModel {
     /// The reimbursement link for a given expense, if any (backs Modal 2).
     func reimbursementLink(forExpense expenseHash: String) -> ReimbursementLink? {
         reimbursementLinks[expenseHash]
+    }
+
+    /// The expenses an income covers, in the order they were linked (backs the
+    /// income side of the modal's Reimbursement section).
+    func reimbursementLinks(forIncome incomeHash: String) -> [(expenseHash: String, link: ReimbursementLink)] {
+        reimbursementLinks
+            .filter { $0.value.reimbursementHash == incomeHash }
+            .map { (expenseHash: $0.key, link: $0.value) }
+            .sorted { ($0.link.linkedAt, $0.expenseHash) < ($1.link.linkedAt, $1.expenseHash) }
+    }
+
+    /// Income contentHashes that cover at least one expense. Drives the income
+    /// side of the reimbursed row glyph.
+    var incomeHashesWithClaims: Set<String> {
+        Set(reimbursementLinks.values.map(\.reimbursementHash))
     }
 
     /// Total already claimed against a reimbursement income — the sum of every

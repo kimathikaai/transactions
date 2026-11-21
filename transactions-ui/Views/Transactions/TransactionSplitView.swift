@@ -335,9 +335,9 @@ struct TransactionSplitView: View {
     }
 
     /// A transaction row's actions, shown in its right-click `.contextMenu`. Mirrors
-    /// `ReserveCardView.menuItems`. Expense rows additionally get exactly one
-    /// reimburse entry, reflecting current link state (US4); other rows get a
-    /// Reserve Activity entry (e.g. linking a paycheque to an add). Every item opens the
+    /// `ReserveCardView.menuItems`. Expense and income rows additionally get
+    /// exactly one reimburse entry, reflecting current link state (US4); non-expense
+    /// rows get a Reserve Activity entry (e.g. linking a paycheque to an add). Every item opens the
     /// one-stop `TransactionDetailSheet`, landing on the matching section.
     @ViewBuilder
     private func menuItems(for snap: TransactionSnapshot) -> some View {
@@ -369,9 +369,22 @@ struct TransactionSplitView: View {
                     }
                 }
             }
-        } else if !viewModel.reserves.isEmpty {
-            Button("Reserve Activity…", systemImage: "tray.and.arrow.down") {
-                openDetail(snap, focus: .reserve)
+        } else {
+            if snap.effectiveType == .income {
+                if viewModel.incomeHashesWithClaims.contains(snap.id) {
+                    Button("View Reimbursements", systemImage: "link") {
+                        openDetail(snap, focus: .reimbursement)
+                    }
+                } else {
+                    Button("Reimburse Expenses…", systemImage: "arrow.uturn.backward.circle") {
+                        openDetail(snap, focus: .reimbursement)
+                    }
+                }
+            }
+            if !viewModel.reserves.isEmpty {
+                Button("Reserve Activity…", systemImage: "tray.and.arrow.down") {
+                    openDetail(snap, focus: .reserve)
+                }
             }
         }
     }

@@ -5,8 +5,8 @@ import SwiftUI
 /// Reimbursement, Reserve and Links sections. Every
 /// change saves as it's made, and the modal re-reads its transaction by
 /// `contentHash` on each render, so it keeps showing live state even after the
-/// row drops out of the filtered list behind it. Links' Open re-targets the
-/// modal at the counterpart.
+/// row drops out of the filtered list behind it. Open in Links and
+/// Reimbursement re-targets the modal at the counterpart.
 struct TransactionDetailSheet: View {
     @Environment(AppViewModel.self) private var viewModel
     @Environment(\.dismiss) private var dismiss
@@ -26,9 +26,6 @@ struct TransactionDetailSheet: View {
         viewModel.transaction(withHash: currentHash) ?? request.fallback
     }
 
-    /// Reimbursement links only exist for expenses.
-    private var isExpense: Bool { transaction.effectiveType == .expense }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             OriginalTransactionCard(transaction: transaction)
@@ -36,13 +33,24 @@ struct TransactionDetailSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     CategorySection(transaction: transaction, isExpanded: binding(.category))
                     NotesSection(transaction: transaction)
-                    if isExpense {
-                        ReimbursementSection(expense: transaction, isExpanded: binding(.reimbursement))
+                    switch transaction.effectiveType {
+                    case .expense:
+                        ReimbursementSection(expense: transaction, isExpanded: binding(.reimbursement)) {
+                            open($0, section: .reimbursement)
+                        }
+                    case .income:
+                        IncomeReimbursementSection(income: transaction, isExpanded: binding(.reimbursement)) {
+                            open($0, section: .reimbursement)
+                        }
+                    case .transfer_in, .transfer_out:
+                        EmptyView()
                     }
                     if !viewModel.reserves.isEmpty {
                         ReserveActivitySection(transaction: transaction, isExpanded: binding(.reserve))
                     }
-                    LinksSection(transaction: transaction, isExpanded: binding(.links), onOpen: open)
+                    LinksSection(transaction: transaction, isExpanded: binding(.links)) {
+                        open($0, section: .links)
+                    }
                 }
                 // Re-targeting resets each section's local state (queries, selections, drafts).
                 .id(currentHash)
@@ -60,7 +68,8 @@ struct TransactionDetailSheet: View {
             expanded = TransactionDetailSection.initialExpansion(
                 focus: request.focus,
                 isUncategorized: tx.effectiveCategory == nil,
-                isReimbursed: viewModel.reimbursementLink(forExpense: tx.contentHash) != nil,
+                isReimbursed: viewModel.reimbursementLink(forExpense: tx.contentHash) != nil
+                    || viewModel.incomeHashesWithClaims.contains(tx.contentHash),
                 hasReserveActivity: !viewModel.reserveEvents(linkedTo: tx.contentHash).isEmpty,
                 isUnlinkedTransfer: Self.isTransfer(tx)
                     && !viewModel.links(for: tx.contentHash).contains(where: \.isLive),
@@ -73,11 +82,12 @@ struct TransactionDetailSheet: View {
         tx.effectiveType == .transfer_in || tx.effectiveType == .transfer_out
     }
 
-    /// Links' Open: show the counterpart with its Links section expanded.
-    private func open(_ hash: String) {
+    /// Links' and Reimbursement's Open: show the counterpart with the section
+    /// the Open came from expanded.
+    private func open(_ hash: String, section: TransactionDetailSection) {
         viewModel.lastSaveError = nil
         currentHash = hash
-        expanded = [.links]
+        expanded = [section]
     }
 
     private func binding(_ section: TransactionDetailSection) -> Binding<Bool> {

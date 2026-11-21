@@ -3,13 +3,15 @@ import SwiftUI
 /// The modal's Reimbursement section (expenses only). Unlinked: search the
 /// income pool, select one row, then press Link — selecting alone changes
 /// nothing, because a link moves money between pools. Linked: the source income
-/// with an Unlink that applies at once. The reimbursed amount is automatic:
+/// with Open (re-targets the modal at it) and an Unlink that applies at once. The reimbursed amount is automatic:
 /// `min(|expense|, the income's remaining pool)`.
 struct ReimbursementSection: View {
     @Environment(AppViewModel.self) private var viewModel
 
     let expense: Transaction
     @Binding var isExpanded: Bool
+    /// Re-targets the modal at the source income's hash.
+    let onOpen: (String) -> Void
 
     @State private var query = ""
     // Selected income by contentHash — persists even if a query later hides it.
@@ -71,9 +73,14 @@ struct ReimbursementSection: View {
                 }
             }
             Spacer(minLength: 0)
-            // Not destructive-red: re-linking is the undo.
-            Button("Unlink") {
-                viewModel.unlinkReimbursement(expenseHash: expense.contentHash)
+            HStack(spacing: 6) {
+                if source != nil {
+                    Button("Open") { onOpen(link.reimbursementHash) }
+                }
+                // Not destructive-red: re-linking is the undo.
+                Button("Unlink") {
+                    viewModel.unlinkReimbursement(expenseHash: expense.contentHash)
+                }
             }
             .buttonStyle(.glass)
         }
