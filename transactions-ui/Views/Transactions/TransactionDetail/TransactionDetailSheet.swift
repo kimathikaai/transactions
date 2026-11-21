@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The one-stop transaction modal: the original bank row on top, then
-/// collapsible Category, Notes, Reimbursement, Reserve and Links sections. Every
+/// collapsible Category, an always-open Notes box, then collapsible
+/// Reimbursement, Reserve and Links sections. Every
 /// change saves as it's made, and the modal re-reads its transaction by
 /// `contentHash` on each render, so it keeps showing live state even after the
 /// row drops out of the filtered list behind it. Links' Open re-targets the
@@ -34,7 +35,7 @@ struct TransactionDetailSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     CategorySection(transaction: transaction, isExpanded: binding(.category))
-                    NotesSection(transaction: transaction, isExpanded: binding(.notes))
+                    NotesSection(transaction: transaction)
                     if isExpense {
                         ReimbursementSection(expense: transaction, isExpanded: binding(.reimbursement))
                     }
@@ -59,7 +60,6 @@ struct TransactionDetailSheet: View {
             expanded = TransactionDetailSection.initialExpansion(
                 focus: request.focus,
                 isUncategorized: tx.effectiveCategory == nil,
-                hasNotes: !(tx.effectiveNotes ?? "").isEmpty,
                 isReimbursed: viewModel.reimbursementLink(forExpense: tx.contentHash) != nil,
                 hasReserveActivity: !viewModel.reserveEvents(linkedTo: tx.contentHash).isEmpty,
                 isUnlinkedTransfer: Self.isTransfer(tx)

@@ -9,10 +9,10 @@ enum TransactionDetailFocus {
     case links
 }
 
-/// The modal's collapsible sections (the original-transaction card is always shown).
+/// The modal's collapsible sections (the original-transaction card and Notes box
+/// are always shown).
 enum TransactionDetailSection: Hashable {
     case category
-    case notes
     case reimbursement
     case reserve
     case links
@@ -23,7 +23,6 @@ enum TransactionDetailSection: Hashable {
     static func initialExpansion(
         focus: TransactionDetailFocus,
         isUncategorized: Bool,
-        hasNotes: Bool,
         isReimbursed: Bool,
         hasReserveActivity: Bool,
         isUnlinkedTransfer: Bool = false,
@@ -37,7 +36,6 @@ enum TransactionDetailSection: Hashable {
         case .edit:
             var sections: Set<TransactionDetailSection> = []
             if isUncategorized { sections.insert(.category) }
-            if hasNotes { sections.insert(.notes) }
             if isReimbursed { sections.insert(.reimbursement) }
             if hasReserveActivity { sections.insert(.reserve) }
             if isUnlinkedTransfer || hasLinks { sections.insert(.links) }
