@@ -1,40 +1,52 @@
 import Foundation
 
-/// Persists reimbursement links as a `[String: ReimbursementLink]` map keyed by
-/// the reimbursed expense's `contentHash`, mirroring `EditStore`. The expense
-/// hash being the key enforces "one reimbursement per expense" (US3). This is a
-/// flat mutable record store — there is no allocate/release lifecycle, so no
-/// event log (unlike reserves).
+/// Persists reimbursement links as a `[String: [ReimbursementLink]]` map keyed by
+/// the reimbursed expense's `contentHash`: one entry per expense, holding every
+/// income that pays part of it back (at most one link per expense/income pair).
+/// An expense with no links has no key. This is a flat mutable record store —
+/// there is no allocate/release lifecycle, so no event log (unlike reserves).
+///
+/// Legacy files stored one link per expense (`[String: ReimbursementLink]`);
+/// `load` still reads them, and the next write saves the list format.
 final class ReimbursementStore {
 
     private let fileURL: URL
-    private(set) var links: [String: ReimbursementLink] = [:]
+    private(set) var links: [String: [ReimbursementLink]] = [:]
 
     init(fileURL: URL) { self.fileURL = fileURL }
 
     /// Reads the file into memory. Missing file → empty map (fresh checkout or
-    /// first launch).
+    /// first launch). Falls back to the legacy one-link-per-expense format.
     func load() throws {
-        links = try AtomicJSONFile.load([String: ReimbursementLink].self, from: fileURL) ?? [:]
+        do {
+            links = try AtomicJSONFile.load([String: [ReimbursementLink]].self, from: fileURL) ?? [:]
+        } catch {
+            guard let legacy = try? AtomicJSONFile.load([String: ReimbursementLink].self, from: fileURL) else {
+                throw error
+            }
+            links = legacy.mapValues { [$0] }
+        }
     }
 
     func save() throws {
         try AtomicJSONFile.save(links, to: fileURL)
     }
 
-    /// Insert or replace the link for the given reimbursed-expense hash, then persist.
-    func upsert(expenseHash: String, record: ReimbursementLink) throws {
-        links[expenseHash] = record
+    /// Append a link to the given reimbursed-expense hash, then persist.
+    func add(expenseHash: String, record: ReimbursementLink) throws {
+        links[expenseHash, default: []].append(record)
         try save()
     }
 
-    /// Remove the link for the given reimbursed-expense hash. No-op if not found, then persist.
-    func delete(expenseHash: String) throws {
-        links.removeValue(forKey: expenseHash)
+    /// Remove the link between the given expense and income, dropping the
+    /// expense's key when it was the last one. No-op if not found, then persist.
+    func delete(expenseHash: String, incomeHash: String) throws {
+        let remaining = (links[expenseHash] ?? []).filter { $0.reimbursementHash != incomeHash }
+        links[expenseHash] = remaining.isEmpty ? nil : remaining
         try save()
     }
 
-    func replaceAll(_ next: [String: ReimbursementLink]) throws {
+    func replaceAll(_ next: [String: [ReimbursementLink]]) throws {
         links = next
         try save()
     }

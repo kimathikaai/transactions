@@ -14,22 +14,52 @@ struct ReimbursementStoreTests {
         )
     }
 
-    @Test func upsertPersists() throws {
+    private func link(_ income: String, _ amount: Double) -> ReimbursementLink {
+        ReimbursementLink(reimbursementHash: income, amount: amount,
+                          linkedAt: Date(timeIntervalSince1970: 1_700_000_000))
+    }
+
+    @Test func addPersists() throws {
         let dir = TempDataDirectory()
         let store = ReimbursementStore(fileURL: dir.file("reimbursements.json"))
-        try store.upsert(expenseHash: "expense-a", record: sample())
+        try store.add(expenseHash: "expense-a", record: sample())
 
         let fresh = ReimbursementStore(fileURL: dir.file("reimbursements.json"))
         try fresh.load()
-        #expect(fresh.links["expense-a"] == sample())
+        #expect(fresh.links["expense-a"] == [sample()])
     }
 
-    @Test func deleteRemoves() throws {
+    @Test func addAppendsASecondIncomeToTheSameExpense() throws {
         let dir = TempDataDirectory()
         let store = ReimbursementStore(fileURL: dir.file("reimbursements.json"))
-        try store.upsert(expenseHash: "expense-a", record: sample())
-        try store.delete(expenseHash: "expense-a")
+        try store.add(expenseHash: "expense-a", record: link("income-1", 40))
+        try store.add(expenseHash: "expense-a", record: link("income-2", 50))
+        #expect(store.links["expense-a"]?.map(\.reimbursementHash) == ["income-1", "income-2"])
+    }
+
+    @Test func deleteRemovesOnlyThatPair() throws {
+        let dir = TempDataDirectory()
+        let store = ReimbursementStore(fileURL: dir.file("reimbursements.json"))
+        try store.add(expenseHash: "expense-a", record: link("income-1", 40))
+        try store.add(expenseHash: "expense-a", record: link("income-2", 50))
+        try store.delete(expenseHash: "expense-a", incomeHash: "income-1")
+        #expect(store.links["expense-a"]?.map(\.reimbursementHash) == ["income-2"])
+    }
+
+    @Test func deletingTheLastLinkDropsTheExpense() throws {
+        let dir = TempDataDirectory()
+        let store = ReimbursementStore(fileURL: dir.file("reimbursements.json"))
+        try store.add(expenseHash: "expense-a", record: sample())
+        try store.delete(expenseHash: "expense-a", incomeHash: "income-1")
         #expect(store.links.isEmpty)
+    }
+
+    @Test func loadReadsTheLegacySingleLinkFormat() throws {
+        let dir = TempDataDirectory()
+        try AtomicJSONFile.save(["expense-a": sample()], to: dir.file("reimbursements.json"))
+        let store = ReimbursementStore(fileURL: dir.file("reimbursements.json"))
+        try store.load()
+        #expect(store.links["expense-a"] == [sample()])
     }
 
     @Test func loadMissingFileIsEmpty() throws {
@@ -42,10 +72,10 @@ struct ReimbursementStoreTests {
     @Test func replaceAllOverwrites() throws {
         let dir = TempDataDirectory()
         let store = ReimbursementStore(fileURL: dir.file("reimbursements.json"))
-        try store.upsert(expenseHash: "expense-a", record: sample())
-        try store.replaceAll(["expense-b": sample()])
+        try store.add(expenseHash: "expense-a", record: sample())
+        try store.replaceAll(["expense-b": [sample()]])
         #expect(store.links.count == 1)
-        #expect(store.links["expense-b"] == sample())
+        #expect(store.links["expense-b"] == [sample()])
         #expect(store.links["expense-a"] == nil)
     }
 }

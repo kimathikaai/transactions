@@ -348,7 +348,7 @@ struct TransactionSplitView: View {
         }
         if snap.effectiveType == .expense {
             if viewModel.reimbursedExpenseHashes.contains(snap.id) {
-                Button("View Reimbursement", systemImage: "link") {
+                Button("View Reimbursements", systemImage: "link") {
                     openDetail(snap, focus: .reimbursement)
                 }
             } else {

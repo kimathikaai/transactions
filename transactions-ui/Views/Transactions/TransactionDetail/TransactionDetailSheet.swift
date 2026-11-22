@@ -68,7 +68,7 @@ struct TransactionDetailSheet: View {
             expanded = TransactionDetailSection.initialExpansion(
                 focus: request.focus,
                 isUncategorized: tx.effectiveCategory == nil,
-                isReimbursed: viewModel.reimbursementLink(forExpense: tx.contentHash) != nil
+                isReimbursed: viewModel.reimbursedExpenseHashes.contains(tx.contentHash)
                     || viewModel.incomeHashesWithClaims.contains(tx.contentHash),
                 hasReserveActivity: !viewModel.reserveEvents(linkedTo: tx.contentHash).isEmpty,
                 isUnlinkedTransfer: Self.isTransfer(tx)

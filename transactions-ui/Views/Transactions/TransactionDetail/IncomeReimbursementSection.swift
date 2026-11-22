@@ -3,8 +3,10 @@ import SwiftUI
 /// The modal's Reimbursement section for an income: the expenses it pays back.
 /// Shows the pool (covered / remaining), each covered expense with Open and
 /// Unlink, and a picker that links one expense at a time — the picker stays
-/// open so several can be linked in a row. Already-reimbursed expenses are
-/// shown greyed out. Each link takes `min(|expense|, the remaining pool)`.
+/// open so several can be linked in a row. Rows show each expense's
+/// unreimbursed remainder; fully reimbursed expenses, and ones already linked
+/// to this income, are greyed out. Each link takes `min(the expense's
+/// remainder, the remaining pool)`.
 struct IncomeReimbursementSection: View {
     @Environment(AppViewModel.self) private var viewModel
 
@@ -103,7 +105,8 @@ struct IncomeReimbursementSection: View {
                 }
                 // Not destructive-red: re-linking is the undo.
                 Button("Unlink") {
-                    viewModel.unlinkReimbursement(expenseHash: expenseHash)
+                    viewModel.unlinkReimbursement(expenseHash: expenseHash,
+                                                  incomeHash: income.contentHash)
                 }
             }
             .buttonStyle(.glass)
@@ -124,8 +127,13 @@ struct IncomeReimbursementSection: View {
         return viewModel.expenseTransactions.first { $0.id == selectedID }
     }
 
+    /// What's left to reimburse on a candidate expense.
+    private func expenseLeft(_ snap: TransactionSnapshot) -> Double {
+        viewModel.unreimbursed(forExpense: snap.id, amount: abs(snap.effectiveAmount))
+    }
+
     private var reimburseAmount: Double? {
-        selected.map { min(abs($0.effectiveAmount), remaining) }
+        selected.map { min(expenseLeft($0), remaining) }
     }
 
     private var picker: some View {
@@ -177,7 +185,7 @@ struct IncomeReimbursementSection: View {
         HStack(spacing: 8) {
             Text("Date").frame(width: dateWidth, alignment: .leading)
             Text("Details").frame(maxWidth: .infinity, alignment: .leading)
-            Text("Amount").frame(width: amountWidth, alignment: .trailing)
+            Text("Remaining").frame(width: amountWidth, alignment: .trailing)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -204,8 +212,9 @@ struct IncomeReimbursementSection: View {
     }
 
     private func row(_ snap: TransactionSnapshot) -> some View {
-        // One reimbursement per expense: a linked expense is shown but can't be picked.
-        let isReimbursed = snap.isReimbursed
+        // A fully reimbursed expense, or one already linked here, is shown but can't be picked.
+        let isUnavailable = expenseLeft(snap) < 0.01
+            || viewModel.isReimbursementLinked(expenseHash: snap.id, incomeHash: income.contentHash)
         let isSelected = selectedID == snap.id
         let detailText = snap.accountName.map { "\(snap.details) · \($0)" } ?? snap.details
         return Button {
@@ -220,7 +229,7 @@ struct IncomeReimbursementSection: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .help(detailText)
-                Text(abs(snap.effectiveAmount).formatted(.cad))
+                Text(expenseLeft(snap).formatted(.cad))
                     .frame(width: amountWidth, alignment: .trailing)
             }
             .font(.callout)
@@ -234,8 +243,8 @@ struct IncomeReimbursementSection: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(isReimbursed)
-        .opacity(isReimbursed ? 0.4 : 1)
+        .disabled(isUnavailable)
+        .opacity(isUnavailable ? 0.4 : 1)
     }
 
     private func linkSelected() {

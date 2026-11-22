@@ -60,7 +60,7 @@ struct MonthlyFlowFiltersTests {
             tx("exp1", 2025, 1, .expense),
             tx("inc1", 2025, 1, .income),
         ]
-        let links = ["exp1": ReimbursementLink(reimbursementHash: "inc1", amount: 300)]
+        let links = ["exp1": [ReimbursementLink(reimbursementHash: "inc1", amount: 300)]]
         let result = netReimbursements(from: metrics, transactions: transactions, links: links)
         #expect(result[0].income == 3700)
         #expect(result[0].expense == 2700)
@@ -78,7 +78,7 @@ struct MonthlyFlowFiltersTests {
             tx("exp1", 2025, 1, .expense),
             tx("inc1", 2025, 2, .income),
         ]
-        let links = ["exp1": ReimbursementLink(reimbursementHash: "inc1", amount: 500)]
+        let links = ["exp1": [ReimbursementLink(reimbursementHash: "inc1", amount: 500)]]
         let result = netReimbursements(from: metrics, transactions: transactions, links: links)
         // January: only the expense side drops.
         #expect(result[0].income == 4000)
@@ -93,7 +93,7 @@ struct MonthlyFlowFiltersTests {
         let metrics = [metric(2025, 1, income: 4000, expense: 3000)]
         // Only the expense resolves; the source income hash is unknown.
         let transactions = [tx("exp1", 2025, 1, .expense)]
-        let links = ["exp1": ReimbursementLink(reimbursementHash: "gone", amount: 300)]
+        let links = ["exp1": [ReimbursementLink(reimbursementHash: "gone", amount: 300)]]
         let result = netReimbursements(from: metrics, transactions: transactions, links: links)
         #expect(result[0].income == 4000)
         #expect(result[0].expense == 2700)
@@ -103,10 +103,34 @@ struct MonthlyFlowFiltersTests {
     func danglingExpenseNetsIncomeOnly() {
         let metrics = [metric(2025, 1, income: 4000, expense: 3000)]
         let transactions = [tx("inc1", 2025, 1, .income)]
-        let links = ["gone": ReimbursementLink(reimbursementHash: "inc1", amount: 300)]
+        let links = ["gone": [ReimbursementLink(reimbursementHash: "inc1", amount: 300)]]
         let result = netReimbursements(from: metrics, transactions: transactions, links: links)
         #expect(result[0].income == 3700)
         #expect(result[0].expense == 3000)
+    }
+
+    @Test("An expense covered by two incomes nets each income in its own month")
+    func expenseWithTwoIncomes() {
+        let metrics = [
+            metric(2025, 1, income: 4000, expense: 3000),
+            metric(2025, 2, income: 5000, expense: 2000),
+        ]
+        let transactions = [
+            tx("exp1", 2025, 1, .expense),
+            tx("inc1", 2025, 1, .income),
+            tx("inc2", 2025, 2, .income),
+        ]
+        let links = ["exp1": [
+            ReimbursementLink(reimbursementHash: "inc1", amount: 40),
+            ReimbursementLink(reimbursementHash: "inc2", amount: 50),
+        ]]
+        let result = netReimbursements(from: metrics, transactions: transactions, links: links)
+        // January: the expense drops by both links, income by inc1's.
+        #expect(result[0].expense == 2910)
+        #expect(result[0].income == 3960)
+        // February: only inc2's income side drops.
+        #expect(result[1].income == 4950)
+        #expect(result[1].expense == 2000)
     }
 
     @Test("Offsets are clamped so income and expense never go negative")
@@ -117,7 +141,7 @@ struct MonthlyFlowFiltersTests {
             tx("inc1", 2025, 1, .income),
         ]
         // Amount exceeds both the month's income and expense.
-        let links = ["exp1": ReimbursementLink(reimbursementHash: "inc1", amount: 5000)]
+        let links = ["exp1": [ReimbursementLink(reimbursementHash: "inc1", amount: 5000)]]
         let result = netReimbursements(from: metrics, transactions: transactions, links: links)
         #expect(result[0].income == 0)
         #expect(result[0].expense == 0)
@@ -131,7 +155,7 @@ struct MonthlyFlowFiltersTests {
             tx("exp1", 2025, 1, .expense),
             tx("inc1", 2025, 1, .income),
         ]
-        let links = ["exp1": ReimbursementLink(reimbursementHash: "inc1", amount: 1000)]
+        let links = ["exp1": [ReimbursementLink(reimbursementHash: "inc1", amount: 1000)]]
         let result = netReimbursements(from: metrics, transactions: transactions, links: links)
         // income 3000, expense 2000 -> net 1000, rate 1000/3000.
         #expect(result[0].net == 1000)
@@ -145,7 +169,7 @@ struct MonthlyFlowFiltersTests {
             tx("exp1", 2025, 1, .expense),
             tx("inc1", 2025, 1, .income),
         ]
-        let links = ["exp1": ReimbursementLink(reimbursementHash: "inc1", amount: 300)]
+        let links = ["exp1": [ReimbursementLink(reimbursementHash: "inc1", amount: 300)]]
         let result = netReimbursements(from: metrics, transactions: transactions, links: links)
         #expect(result[0].balances == metrics[0].balances)
         #expect(result[0].netWorth == metrics[0].netWorth)

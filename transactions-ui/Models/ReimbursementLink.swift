@@ -1,14 +1,15 @@
 import Foundation
 
-/// Value-type record of a single reimbursed expense, keyed on disk by the
-/// reimbursed expense's `contentHash` (so each expense has at most one link —
-/// this enforces "one reimbursement per expense"). The link draws from a
-/// reimbursement income identified by `reimbursementHash`.
+/// Value-type record of one income paying back (part of) one expense. Stored on
+/// disk in the list under the reimbursed expense's `contentHash`, so an expense
+/// can be covered by several incomes and an income can cover several expenses
+/// (at most one link per pair). The link draws from a reimbursement income
+/// identified by `reimbursementHash`.
 ///
-/// `amount` is a **snapshot** computed as `min(|expense|, the income's remaining
-/// pool)` at link time and never recomputed — to change it, unlink and re-link.
-/// Persisted as one value of `reimbursements.json` (a `[String: ReimbursementLink]`
-/// keyed by expense hash), mirroring `edits.json`.
+/// `amount` is a **snapshot** computed as `min(the expense's unreimbursed
+/// remainder, the income's remaining pool)` at link time and never recomputed —
+/// to change it, unlink and re-link. Persisted in `reimbursements.json` (a
+/// `[String: [ReimbursementLink]]` keyed by expense hash).
 struct ReimbursementLink: Codable, Equatable, Hashable {
     /// contentHash of the reimbursement income this link draws from. Resolved to
     /// a live transaction at display time — a dangling hash renders as unlinked.

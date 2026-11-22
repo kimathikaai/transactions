@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// The modal's Reimbursement section (expenses only). Unlinked: search the
-/// income pool, select one row, then press Link — selecting alone changes
-/// nothing, because a link moves money between pools. Linked: the source income
-/// with Open (re-targets the modal at it) and an Unlink that applies at once. The reimbursed amount is automatic:
-/// `min(|expense|, the income's remaining pool)`.
+/// The modal's Reimbursement section for an expense: the incomes that pay it
+/// back. Shows the reimbursed / remaining total, each covering income with Open
+/// (re-targets the modal at it) and Unlink, and a picker that links one income
+/// at a time — selecting alone changes nothing, because a link moves money
+/// between pools. The picker stays until the expense is fully reimbursed.
+/// Each link takes `min(the expense's remainder, the income's remaining pool)`.
 struct ReimbursementSection: View {
     @Environment(AppViewModel.self) private var viewModel
 
@@ -28,22 +29,46 @@ struct ReimbursementSection: View {
         return f
     }()
 
-    private var link: ReimbursementLink? {
-        viewModel.reimbursementLink(forExpense: expense.contentHash)
+    private var links: [ReimbursementLink] {
+        viewModel.reimbursementLinks(forExpense: expense.contentHash)
+    }
+
+    private var expenseAmount: Double { abs(expense.effectiveAmount) }
+    private var reimbursed: Double { viewModel.reimbursed(forExpense: expense.contentHash) }
+    private var expenseLeft: Double {
+        viewModel.unreimbursed(forExpense: expense.contentHash, amount: expenseAmount)
+    }
+
+    private var summary: String {
+        "Reimbursed \(reimbursed.formatted(.cad)) of \(expenseAmount.formatted(.cad)) · \(expenseLeft.formatted(.cad)) remaining"
     }
 
     var body: some View {
         DetailSection(
             title: "Reimbursement",
             descriptor: "Did someone pay you back for this? Link it to the income that covered it so it nets out of your flow.",
-            status: link.map { "Linked · \($0.amount.formatted(.cad))" } ?? "Not linked",
-            statusTint: link == nil ? .neutral : .done,
+            status: links.isEmpty ? "Not linked" : summary,
+            statusTint: links.isEmpty ? .neutral : .done,
             isExpanded: $isExpanded
         ) {
-            if let link {
-                linkedCapsule(link)
-            } else {
-                picker
+            VStack(alignment: .leading, spacing: 12) {
+                if !links.isEmpty {
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(links, id: \.reimbursementHash) { link in
+                            linkedCapsule(link)
+                        }
+                    }
+                }
+                if expenseLeft < 0.01 {
+                    Text("Fully reimbursed")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    picker
+                }
             }
         }
     }
@@ -79,7 +104,8 @@ struct ReimbursementSection: View {
                 }
                 // Not destructive-red: re-linking is the undo.
                 Button("Unlink") {
-                    viewModel.unlinkReimbursement(expenseHash: expense.contentHash)
+                    viewModel.unlinkReimbursement(expenseHash: expense.contentHash,
+                                                  incomeHash: link.reimbursementHash)
                 }
             }
             .buttonStyle(.glass)
@@ -89,9 +115,7 @@ struct ReimbursementSection: View {
         .background(Color.income.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    // MARK: - Unlinked
-
-    private var expenseAmount: Double { abs(expense.effectiveAmount) }
+    // MARK: - Picker
 
     private var filtered: [TransactionSnapshot] {
         viewModel.incomeTransactions.filter { $0.matches(searchText: query) }
@@ -107,7 +131,7 @@ struct ReimbursementSection: View {
     }
 
     private var reimburseAmount: Double? {
-        selected.map { min(expenseAmount, remaining($0)) }
+        selected.map { min(expenseLeft, remaining($0)) }
     }
 
     private var picker: some View {
@@ -186,8 +210,9 @@ struct ReimbursementSection: View {
     }
 
     private func row(_ snap: TransactionSnapshot) -> some View {
-        // A source with nothing left can't be picked.
-        let isFullyClaimed = remaining(snap) < 0.01
+        // A source with nothing left, or one already linked here, can't be picked.
+        let isUnavailable = remaining(snap) < 0.01
+            || viewModel.isReimbursementLinked(expenseHash: expense.contentHash, incomeHash: snap.id)
         let isSelected = selectedID == snap.id
         let detailText = snap.accountName.map { "\(snap.details) · \($0)" } ?? snap.details
         return Button {
@@ -216,15 +241,14 @@ struct ReimbursementSection: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(isFullyClaimed)
-        .opacity(isFullyClaimed ? 0.4 : 1)
+        .disabled(isUnavailable)
+        .opacity(isUnavailable ? 0.4 : 1)
     }
 
     private func linkSelected() {
         guard let selected else { return }
         if viewModel.linkReimbursement(expense: expense, toIncome: selected.transaction) {
             selectedID = nil
-            query = ""
         }
     }
 }

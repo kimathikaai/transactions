@@ -18,7 +18,7 @@ import Foundation
 func netReimbursements(
     from metrics: [MonthlyMetric],
     transactions: [Transaction],
-    links: [String: ReimbursementLink]
+    links: [String: [ReimbursementLink]]
 ) -> [MonthlyMetric] {
     guard !links.isEmpty else { return metrics }
 
@@ -30,12 +30,14 @@ func netReimbursements(
 
     var incomeOffset: [Date: Double] = [:]
     var expenseOffset: [Date: Double] = [:]
-    for (expenseHash, link) in links {
-        if let expenseMonth = monthByHash[expenseHash] {
-            expenseOffset[expenseMonth, default: 0] += link.amount
-        }
-        if let incomeMonth = monthByHash[link.reimbursementHash] {
-            incomeOffset[incomeMonth, default: 0] += link.amount
+    for (expenseHash, expenseLinks) in links {
+        for link in expenseLinks {
+            if let expenseMonth = monthByHash[expenseHash] {
+                expenseOffset[expenseMonth, default: 0] += link.amount
+            }
+            if let incomeMonth = monthByHash[link.reimbursementHash] {
+                incomeOffset[incomeMonth, default: 0] += link.amount
+            }
         }
     }
 

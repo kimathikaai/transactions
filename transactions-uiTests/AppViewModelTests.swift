@@ -932,8 +932,8 @@ struct AppViewModelTests {
 
         #expect(vm.reimbursementLinks.count == 3)
         #expect(vm.reimbursedExpenseHashes == ["expense-1", "expense-2", "expense-3"])
-        #expect(vm.reimbursementLink(forExpense: "expense-2")?.amount == 50)
-        #expect(vm.reimbursementLink(forExpense: "missing") == nil)
+        #expect(vm.reimbursementLinks(forExpense: "expense-2").map(\.amount) == [50])
+        #expect(vm.reimbursementLinks(forExpense: "missing").isEmpty)
 
         // income-A: 30 + 50 = 80 claimed.
         #expect(vm.claimed(forReimbursement: "income-A") == 80)
@@ -973,13 +973,13 @@ struct AppViewModelTests {
         let dir = TempDataDirectory()
         let vm = makeVM(dir: dir)
         #expect(vm.linkReimbursement(expense: expenseTx("e1", 100), toIncome: incomeTx("inc", 200)))
-        #expect(vm.reimbursementLink(forExpense: "e1")?.amount == 100)
-        #expect(vm.reimbursementLink(forExpense: "e1")?.reimbursementHash == "inc")
+        #expect(vm.reimbursementLinks(forExpense: "e1").first?.amount == 100)
+        #expect(vm.reimbursementLinks(forExpense: "e1").first?.reimbursementHash == "inc")
         #expect(vm.claimed(forReimbursement: "inc") == 100)
         #expect(vm.remaining(forReimbursement: "inc", capacity: 200) == 100)
 
         let vm2 = makeVM(dir: dir)
-        #expect(vm2.reimbursementLink(forExpense: "e1")?.amount == 100)
+        #expect(vm2.reimbursementLinks(forExpense: "e1").first?.amount == 100)
     }
 
     @Test("link caps at remaining pool for partial coverage (US2)")
@@ -987,7 +987,7 @@ struct AppViewModelTests {
         let dir = TempDataDirectory()
         let vm = makeVM(dir: dir)
         #expect(vm.linkReimbursement(expense: expenseTx("e1", 100), toIncome: incomeTx("inc", 60)))
-        #expect(vm.reimbursementLink(forExpense: "e1")?.amount == 60)
+        #expect(vm.reimbursementLinks(forExpense: "e1").first?.amount == 60)
         #expect(vm.remaining(forReimbursement: "inc", capacity: 60) == 0)
     }
 
@@ -997,22 +997,71 @@ struct AppViewModelTests {
         let vm = makeVM(dir: dir)
         let inc = incomeTx("inc", 200)
         #expect(vm.linkReimbursement(expense: expenseTx("e1", 150), toIncome: inc))
-        #expect(vm.reimbursementLink(forExpense: "e1")?.amount == 150)
+        #expect(vm.reimbursementLinks(forExpense: "e1").first?.amount == 150)
         #expect(vm.linkReimbursement(expense: expenseTx("e2", 100), toIncome: inc))
-        #expect(vm.reimbursementLink(forExpense: "e2")?.amount == 50)   // only 50 left
+        #expect(vm.reimbursementLinks(forExpense: "e2").first?.amount == 50)   // only 50 left
         #expect(vm.remaining(forReimbursement: "inc", capacity: 200) == 0)
         // Fully claimed → next link rejected.
         #expect(!vm.linkReimbursement(expense: expenseTx("e3", 20), toIncome: inc))
-        #expect(vm.reimbursementLink(forExpense: "e3") == nil)
+        #expect(vm.reimbursementLinks(forExpense: "e3").isEmpty)
     }
 
-    @Test("linking an already-linked expense is rejected (US3)")
-    func linkRejectsDoubleLink() {
+    @Test("linking a fully reimbursed expense to another income is rejected")
+    func linkRejectsFullyReimbursedExpense() {
         let dir = TempDataDirectory()
         let vm = makeVM(dir: dir)
         #expect(vm.linkReimbursement(expense: expenseTx("e1", 50), toIncome: incomeTx("a", 100)))
         #expect(!vm.linkReimbursement(expense: expenseTx("e1", 50), toIncome: incomeTx("b", 100)))
-        #expect(vm.reimbursementLink(forExpense: "e1")?.reimbursementHash == "a")
+        #expect(vm.reimbursementLinks(forExpense: "e1").first?.reimbursementHash == "a")
+    }
+
+    @Test("a second income covers what the first left of an expense")
+    func secondIncomeCoversRemainder() {
+        let dir = TempDataDirectory()
+        let vm = makeVM(dir: dir)
+        let expense = expenseTx("e1", 2000)
+        #expect(vm.linkReimbursement(expense: expense, toIncome: incomeTx("a", 40)))
+        #expect(vm.linkReimbursement(expense: expense, toIncome: incomeTx("b", 50)))
+        #expect(vm.reimbursementLinks(forExpense: "e1").map(\.reimbursementHash) == ["a", "b"])
+        #expect(vm.reimbursementLinks(forExpense: "e1").map(\.amount) == [40, 50])
+        #expect(vm.reimbursed(forExpense: "e1") == 90)
+        #expect(vm.unreimbursed(forExpense: "e1", amount: 2000) == 1910)
+    }
+
+    @Test("a link takes only what the expense has left")
+    func linkCapsAtExpenseRemainder() {
+        let dir = TempDataDirectory()
+        let vm = makeVM(dir: dir)
+        let expense = expenseTx("e1", 100)
+        #expect(vm.linkReimbursement(expense: expense, toIncome: incomeTx("a", 70)))
+        #expect(vm.linkReimbursement(expense: expense, toIncome: incomeTx("b", 500)))
+        #expect(vm.reimbursementLinks(forExpense: "e1").map(\.amount) == [70, 30])
+        #expect(vm.unreimbursed(forExpense: "e1", amount: 100) == 0)
+        #expect(vm.claimed(forReimbursement: "b") == 30)
+    }
+
+    @Test("unlinking one income leaves the expense's other links in place")
+    func unlinkOnePairKeepsTheOthers() {
+        let dir = TempDataDirectory()
+        let vm = makeVM(dir: dir)
+        let expense = expenseTx("e1", 2000)
+        _ = vm.linkReimbursement(expense: expense, toIncome: incomeTx("a", 40))
+        _ = vm.linkReimbursement(expense: expense, toIncome: incomeTx("b", 50))
+        #expect(vm.unlinkReimbursement(expenseHash: "e1", incomeHash: "a"))
+        #expect(vm.reimbursementLinks(forExpense: "e1").map(\.reimbursementHash) == ["b"])
+        #expect(vm.reimbursedExpenseHashes == ["e1"])
+        #expect(vm.claimed(forReimbursement: "a") == 0)
+    }
+
+    @Test("review rows for one expense's two links have distinct ids")
+    func reviewRowsPerPair() {
+        let dir = TempDataDirectory()
+        let vm = makeVM(dir: dir)
+        let expense = expenseTx("e1", 2000)
+        _ = vm.linkReimbursement(expense: expense, toIncome: incomeTx("a", 40))
+        _ = vm.linkReimbursement(expense: expense, toIncome: incomeTx("b", 50))
+        #expect(Set(vm.reimbursementReview.map(\.id)).count == 2)
+        #expect(Set(vm.reimbursementReview.map(\.incomeHash)) == ["a", "b"])
     }
 
     @Test("unlink frees the expense and returns amount to the pool (US12)")
@@ -1022,8 +1071,8 @@ struct AppViewModelTests {
         let inc = incomeTx("inc", 200)
         _ = vm.linkReimbursement(expense: expenseTx("e1", 80), toIncome: inc)
         #expect(vm.claimed(forReimbursement: "inc") == 80)
-        #expect(vm.unlinkReimbursement(expenseHash: "e1"))
-        #expect(vm.reimbursementLink(forExpense: "e1") == nil)
+        #expect(vm.unlinkReimbursement(expenseHash: "e1", incomeHash: "inc"))
+        #expect(vm.reimbursementLinks(forExpense: "e1").isEmpty)
         #expect(vm.claimed(forReimbursement: "inc") == 0)
         // Freed → can link again.
         #expect(vm.linkReimbursement(expense: expenseTx("e1", 80), toIncome: inc))
@@ -1047,7 +1096,7 @@ struct AppViewModelTests {
         // Only the reimbursed expense row carries the flag.
         #expect(vm.transactionsByDateDesc.filter(\.isReimbursed).count == 1)
 
-        #expect(vm.unlinkReimbursement(expenseHash: txHash))
+        #expect(vm.unlinkReimbursement(expenseHash: txHash, incomeHash: "inc"))
         #expect(try expenseSnap().isReimbursed == false)
     }
 
@@ -1084,7 +1133,7 @@ struct AppViewModelTests {
         #expect(try incomeSnap().isReimbursed == false)
         #expect(vm.linkReimbursement(expense: expense, toIncome: income))
         #expect(try incomeSnap().isReimbursed == true)
-        #expect(vm.unlinkReimbursement(expenseHash: expense.contentHash))
+        #expect(vm.unlinkReimbursement(expenseHash: expense.contentHash, incomeHash: income.contentHash))
         #expect(try incomeSnap().isReimbursed == false)
     }
 
@@ -1131,7 +1180,7 @@ struct AppViewModelTests {
         try AtomicJSONFile.save(links, to: dir.file("reimbursements.json"))
         let vm = makeVM(dir: dir)
 
-        #expect(vm.reimbursementReview.map(\.id) == ["new", "mid", "old"])
+        #expect(vm.reimbursementReview.map(\.expenseHash) == ["new", "mid", "old"])
         // Snapshot amount survives even when no transaction resolves.
         #expect(vm.reimbursementReview.first?.amount == 20)
     }
@@ -1145,7 +1194,8 @@ struct AppViewModelTests {
 
         #expect(vm.reimbursementReview.count == 1)
         let row = try #require(vm.reimbursementReview.first)
-        #expect(row.id == expense.contentHash)
+        #expect(row.expenseHash == expense.contentHash)
+        #expect(row.incomeHash == income.contentHash)
         #expect(row.expenseDetails == "COFFEE SHOP")
         #expect(row.expenseAccountName == "Savings")
         #expect(row.sourceDetails == "WORK PAYOUT")

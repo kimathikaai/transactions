@@ -116,10 +116,10 @@ final class AppViewModel {
     private(set) var categories: [Category] = []
     private(set) var reservations: [Reservation] = []
     private(set) var reserveEvents: [ReserveEvent] = []
-    /// Reimbursement links keyed by the reimbursed expense's contentHash.
-    /// Materialized from `reimbursementStore` on load/mutation (mirroring how
+    /// Reimbursement links keyed by the reimbursed expense's contentHash, one
+    /// entry per covering income. Materialized from `reimbursementStore` on load/mutation (mirroring how
     /// `reservations` is derived) so `@Observable` reactivity fires.
-    private(set) var reimbursementLinks: [String: ReimbursementLink] = [:]
+    private(set) var reimbursementLinks: [String: [ReimbursementLink]] = [:]
     /// Every link touching a transaction, keyed by its contentHash: manual links
     /// from `linkStore` plus the transfer auto-pairs, which are recomputed by
     /// `rebuildLinks()` and never persisted.
@@ -565,38 +565,63 @@ final class AppViewModel {
 
     // MARK: - Reimbursements (derived)
 
-    /// Expense contentHashes that already have a reimbursement link. Drives the
-    /// US9 badge and the US3 "one reimbursement per expense" guard.
+    /// Every reimbursement link as an (expense, link) pair.
+    private var allReimbursementLinks: [(expenseHash: String, link: ReimbursementLink)] {
+        reimbursementLinks.flatMap { expenseHash, links in
+            links.map { (expenseHash: expenseHash, link: $0) }
+        }
+    }
+
+    /// Expense contentHashes with at least one reimbursement link (partial or
+    /// full). Drives the reimbursed row glyph and the context-menu label.
     var reimbursedExpenseHashes: Set<String> {
         Set(reimbursementLinks.keys)
     }
 
-    /// The reimbursement link for a given expense, if any (backs Modal 2).
-    func reimbursementLink(forExpense expenseHash: String) -> ReimbursementLink? {
-        reimbursementLinks[expenseHash]
+    /// The incomes covering an expense, in the order they were linked (backs the
+    /// expense side of the modal's Reimbursement section).
+    func reimbursementLinks(forExpense expenseHash: String) -> [ReimbursementLink] {
+        (reimbursementLinks[expenseHash] ?? []).sorted {
+            ($0.linkedAt, $0.reimbursementHash) < ($1.linkedAt, $1.reimbursementHash)
+        }
+    }
+
+    /// Total already reimbursed on an expense — the sum of its links.
+    func reimbursed(forExpense expenseHash: String) -> Double {
+        (reimbursementLinks[expenseHash] ?? []).reduce(0) { $0 + $1.amount }
+    }
+
+    /// What's left to reimburse on an expense of the given `amount` (its
+    /// absolute value). Never below zero.
+    func unreimbursed(forExpense expenseHash: String, amount: Double) -> Double {
+        max(0, amount - reimbursed(forExpense: expenseHash))
+    }
+
+    /// Whether this expense/income pair is already linked (one link per pair).
+    func isReimbursementLinked(expenseHash: String, incomeHash: String) -> Bool {
+        reimbursementLinks[expenseHash]?.contains { $0.reimbursementHash == incomeHash } ?? false
     }
 
     /// The expenses an income covers, in the order they were linked (backs the
     /// income side of the modal's Reimbursement section).
     func reimbursementLinks(forIncome incomeHash: String) -> [(expenseHash: String, link: ReimbursementLink)] {
-        reimbursementLinks
-            .filter { $0.value.reimbursementHash == incomeHash }
-            .map { (expenseHash: $0.key, link: $0.value) }
+        allReimbursementLinks
+            .filter { $0.link.reimbursementHash == incomeHash }
             .sorted { ($0.link.linkedAt, $0.expenseHash) < ($1.link.linkedAt, $1.expenseHash) }
     }
 
     /// Income contentHashes that cover at least one expense. Drives the income
     /// side of the reimbursed row glyph.
     var incomeHashesWithClaims: Set<String> {
-        Set(reimbursementLinks.values.map(\.reimbursementHash))
+        Set(allReimbursementLinks.map(\.link.reimbursementHash))
     }
 
     /// Total already claimed against a reimbursement income — the sum of every
     /// link drawing from it. Drives the income's Remaining pool (US6/US7).
     func claimed(forReimbursement incomeHash: String) -> Double {
-        reimbursementLinks.values
-            .filter { $0.reimbursementHash == incomeHash }
-            .reduce(0) { $0 + $1.amount }
+        allReimbursementLinks
+            .filter { $0.link.reimbursementHash == incomeHash }
+            .reduce(0) { $0 + $1.link.amount }
     }
 
     /// Remaining (unclaimed) pool for a reimbursement income = its full amount
@@ -612,8 +637,10 @@ final class AppViewModel {
     /// snapshot amount and linked-at date are stored on the link, so a dangling
     /// row still renders and stays unlinkable.
     struct ReimbursementReviewRow: Identifiable {
-        /// The reimbursed expense's contentHash — unique per link (US3).
-        let id: String
+        /// "expenseHash|incomeHash" — unique per link (one link per pair).
+        var id: String { "\(expenseHash)|\(incomeHash)" }
+        let expenseHash: String
+        let incomeHash: String
         let linkedAt: Date
         let expenseDetails: String?
         let expenseAccountName: String?
@@ -626,12 +653,13 @@ final class AppViewModel {
         let txByHash = Dictionary(allTransactions.map { ($0.contentHash, $0) },
                                   uniquingKeysWith: { first, _ in first })
         let accountByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
-        return reimbursementLinks
+        return allReimbursementLinks
             .map { expenseHash, link in
                 let expenseTx = txByHash[expenseHash]
                 let sourceTx = txByHash[link.reimbursementHash]
                 return ReimbursementReviewRow(
-                    id: expenseHash,
+                    expenseHash: expenseHash,
+                    incomeHash: link.reimbursementHash,
                     linkedAt: link.linkedAt,
                     expenseDetails: expenseTx?.details,
                     expenseAccountName: expenseTx.flatMap { accountByID[$0.accountID]?.name },
@@ -648,8 +676,8 @@ final class AppViewModel {
     /// transaction/account was removed). Surfaced as a debug-panel health check;
     /// renders inline in the review table as "(… no longer available)".
     struct DanglingReimbursementLink: Identifiable {
-        /// The reimbursed expense's contentHash (the link key).
-        let id: String
+        /// "expenseHash|reimbursementHash" — unique per link.
+        var id: String { "\(expenseHash)|\(reimbursementHash)" }
         let expenseHash: String
         let reimbursementHash: String
         let expenseMissing: Bool
@@ -658,12 +686,11 @@ final class AppViewModel {
 
     var danglingReimbursementLinks: [DanglingReimbursementLink] {
         let live = Set(allTransactions.map(\.contentHash))
-        return reimbursementLinks.compactMap { expenseHash, link in
+        return allReimbursementLinks.compactMap { expenseHash, link in
             let expenseMissing = !live.contains(expenseHash)
             let sourceMissing = !live.contains(link.reimbursementHash)
             guard expenseMissing || sourceMissing else { return nil }
             return DanglingReimbursementLink(
-                id: expenseHash,
                 expenseHash: expenseHash,
                 reimbursementHash: link.reimbursementHash,
                 expenseMissing: expenseMissing,
@@ -1194,26 +1221,34 @@ final class AppViewModel {
 
     // MARK: - Reimbursement mutations
 
-    /// Link an expense to a reimbursement income (US1/US4). The reimbursed
-    /// amount is computed automatically as `min(|expense|, the income's
+    /// Link an expense to a reimbursement income (US1/US4). An expense can be
+    /// covered by several incomes. The reimbursed amount is computed
+    /// automatically as `min(the expense's unreimbursed remainder, the income's
     /// remaining pool)` and stored as a snapshot — never user-entered
     /// (US1/US2/US8). Rejects (returns `false`, sets `lastSaveError`):
-    ///   • an expense that is already linked (US3 — unlink first), or
+    ///   • a pair that is already linked (unlink first),
+    ///   • an expense that is fully reimbursed, or
     ///   • an income whose remaining pool is ≤ 0 (US7 — fully claimed).
-    /// Both are also prevented by the UI up front. On success persists one link
-    /// (keyed by the expense's contentHash) and refreshes derived state.
+    /// All are also prevented by the UI up front. On success appends one link
+    /// under the expense's contentHash and refreshes derived state.
     @discardableResult
     func linkReimbursement(expense: Transaction, toIncome income: Transaction, note: String? = nil) -> Bool {
         let expenseHash = expense.contentHash
-        // US3: one reimbursement per expense.
-        guard reimbursementLinks[expenseHash] == nil else {
+        // One link per pair: unlink-by-pair relies on it.
+        guard !isReimbursementLinked(expenseHash: expenseHash, incomeHash: income.contentHash) else {
             lastSaveError = NSError(domain: "Reimbursements", code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "expense is already reimbursed"])
+                userInfo: [NSLocalizedDescriptionKey: "expense is already linked to this income"])
+            return false
+        }
+        let expenseLeft = unreimbursed(forExpense: expenseHash, amount: abs(expense.effectiveAmount))
+        guard expenseLeft > 0 else {
+            lastSaveError = NSError(domain: "Reimbursements", code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "expense is fully reimbursed"])
             return false
         }
         let capacity = abs(income.effectiveAmount)
         let remainingPool = remaining(forReimbursement: income.contentHash, capacity: capacity)
-        let amount = min(abs(expense.effectiveAmount), remainingPool)
+        let amount = min(expenseLeft, remainingPool)
         // US7/US8: nothing left to claim → no link.
         guard amount > 0 else {
             lastSaveError = NSError(domain: "Reimbursements", code: 2,
@@ -1227,7 +1262,7 @@ final class AppViewModel {
             note: note
         )
         do {
-            try reimbursementStore.upsert(expenseHash: expenseHash, record: link)
+            try reimbursementStore.add(expenseHash: expenseHash, record: link)
             refreshDerivedState()
             lastSaveError = nil
             return true
@@ -1237,13 +1272,14 @@ final class AppViewModel {
         }
     }
 
-    /// Remove an expense's reimbursement link (US12). The amount returns to the
-    /// income's remaining pool automatically (it is derived), and the expense
-    /// becomes available to link again. Safe no-op if the expense isn't linked.
+    /// Remove the link between an expense and one income (US12). The amount
+    /// returns to both the income's pool and the expense's unreimbursed
+    /// remainder automatically (they are derived); the expense's other links
+    /// stay. Safe no-op if the pair isn't linked.
     @discardableResult
-    func unlinkReimbursement(expenseHash: String) -> Bool {
+    func unlinkReimbursement(expenseHash: String, incomeHash: String) -> Bool {
         do {
-            try reimbursementStore.delete(expenseHash: expenseHash)
+            try reimbursementStore.delete(expenseHash: expenseHash, incomeHash: incomeHash)
             refreshDerivedState()
             lastSaveError = nil
             return true

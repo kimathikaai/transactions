@@ -10,7 +10,7 @@ import SwiftUI
 ///
 /// Read-only overlay: unlinking returns the snapshot amount to the source's
 /// pool and frees the expense to be linked again (via
-/// `AppViewModel.unlinkReimbursement(expenseHash:)`). A dangling link (its
+/// `AppViewModel.unlinkReimbursement(expenseHash:incomeHash:)`). A dangling link (its
 /// expense or source hash no longer resolves, US13) still renders in place —
 /// the unresolved cell reads "(… no longer available)" — and stays unlinkable.
 struct ReimbursementReviewView: View {
@@ -33,7 +33,7 @@ struct ReimbursementReviewView: View {
                         ForEach(rows) { row in
                             ReimbursementRowView(
                                 row: row,
-                                onUnlink: { viewModel.unlinkReimbursement(expenseHash: row.id) }
+                                onUnlink: { viewModel.unlinkReimbursement(expenseHash: row.expenseHash, incomeHash: row.incomeHash) }
                             )
                         }
                     }
@@ -191,15 +191,15 @@ private struct ReimbursementRowView: View {
 
 #Preview("Reimbursements") {
     let rows: [AppViewModel.ReimbursementReviewRow] = [
-        .init(id: "a", linkedAt: Date(timeIntervalSince1970: 1_723_000_000),
+        .init(expenseHash: "a", incomeHash: "i1", linkedAt: Date(timeIntervalSince1970: 1_723_000_000),
               expenseDetails: "AIR CANADA FLIGHT", expenseAccountName: "Travel Rewards Card",
               sourceDetails: "WORK TRAVEL PAYOUT",
               sourceDate: Date(timeIntervalSince1970: 1_722_900_000), amount: 450),
-        .init(id: "b", linkedAt: Date(timeIntervalSince1970: 1_722_800_000),
+        .init(expenseHash: "b", incomeHash: "i1", linkedAt: Date(timeIntervalSince1970: 1_722_800_000),
               expenseDetails: "TEAM DINNER", expenseAccountName: "Travel Rewards Card",
               sourceDetails: "WORK TRAVEL PAYOUT",
               sourceDate: Date(timeIntervalSince1970: 1_722_900_000), amount: 120),
-        .init(id: "c", linkedAt: Date(timeIntervalSince1970: 1_722_500_000),
+        .init(expenseHash: "c", incomeHash: "i2", linkedAt: Date(timeIntervalSince1970: 1_722_500_000),
               expenseDetails: nil, expenseAccountName: nil,
               sourceDetails: "Q3 EXPENSE REIMBURSE",
               sourceDate: Date(timeIntervalSince1970: 1_722_400_000), amount: 80),
