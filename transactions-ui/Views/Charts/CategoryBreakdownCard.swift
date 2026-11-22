@@ -98,26 +98,30 @@ struct CategoryBreakdownCard: View {
 
     // MARK: - Body
 
+    private let contentSpacing: CGFloat = 10
+
+    /// Height of the populated card's content (bar + legend), so the empty state can match it
+    /// and the card doesn't shrink when a filter leaves this type with no transactions.
+    private var contentHeight: CGFloat {
+        barHeight + contentSpacing + legendViewportHeight + legendScrollBarGutter
+    }
+
     var body: some View {
         if total > 0 {
             // Card chrome (background/glass/padding) is supplied by the enclosing
             // SectionContainer.
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: contentSpacing) {
 //                header
                 bar
                 legend
             }
         } else {
-            Text("No \(noun) in this range")
+            Text("No transactions")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
+                .frame(height: contentHeight)
         }
-    }
-
-    /// Lowercased noun for the type, used in the empty-state copy.
-    private var noun: String {
-        type == .income ? "income" : "expenses"
     }
 
     /// Headline tint for the type, matching the finance color tokens.
