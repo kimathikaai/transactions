@@ -8,8 +8,9 @@ import SwiftUI
 ///
 /// Selection: plain click selects one month (the anchor); plain-clicking the sole selection
 /// resets to the full range; shift+click (macOS) extends from the anchor. The row under the
-/// pointer is resolved via `.chartYSelection` on the integer month-index axis, and hovering
-/// brightens it. There is no hover date pill or guide line.
+/// pointer is resolved via `.chartYSelection` on the integer month-index axis. Hovering
+/// brightens that row, outlines its bars in cream, and previews the month in the summary
+/// panel (taking precedence over the committed range). There is no hover date pill or guide line.
 ///
 /// Precondition: `globalStart <= startMonth <= endMonth <= globalEnd`, and the global range
 /// spans at least two months.
@@ -29,8 +30,12 @@ struct MonthlyFlowRangeVerticalBarChart: View {
     /// `.chartYSelection`. `nil` when not hovering. Snapped to a whole index by `snappedIndex`.
     @State private var selectedIndex: Double?
 
-    /// The month the cursor is currently over. Drives the hover highlight only.
-    private var hoveredMonth: Date? { snappedIndex(selectedIndex).map { metrics[$0].month } }
+    /// The row index the cursor is currently over, or `nil` when not hovering a row.
+    private var hoveredIndex: Int? { snappedIndex(selectedIndex) }
+
+    /// The month the cursor is currently over. Drives the hover highlight, the hover outline,
+    /// and the summary panel preview.
+    private var hoveredMonth: Date? { hoveredIndex.map { metrics[$0].month } }
 
     /// The `startMonth` value this view last committed itself, so an external range change
     /// (Reset button, data reload) can be told apart from our own commit.
@@ -55,9 +60,9 @@ struct MonthlyFlowRangeVerticalBarChart: View {
             chart
             Divider()
             RangeSummaryPanel(
-                summary: Self.summary(metrics: metrics, start: startMonth, end: endMonth),
-                start: startMonth,
-                end: endMonth
+                summary: Self.summary(metrics: metrics, start: panelRange.start, end: panelRange.end),
+                start: panelRange.start,
+                end: panelRange.end
             )
         }
         .frame(width: width)
@@ -75,6 +80,13 @@ struct MonthlyFlowRangeVerticalBarChart: View {
         .onChange(of: metrics.count) { seedScroll() }
     }
 
+    /// The months the summary panel reports: the hovered month takes precedence over the
+    /// committed range, so you can explore other months without changing the selection.
+    private var panelRange: (start: Date, end: Date) {
+        if let hoveredMonth { return (hoveredMonth, hoveredMonth) }
+        return (startMonth, endMonth)
+    }
+
     // MARK: - Chart
 
     private var chart: some View {
@@ -85,6 +97,7 @@ struct MonthlyFlowRangeVerticalBarChart: View {
                 .foregroundStyle(Color.gray.opacity(0.4))
                 .lineStyle(StrokeStyle(lineWidth: 1))
         }
+        .chartOverlay { proxy in hoverOutline(proxy) }
         .chartForegroundStyleScale(
             domain: FlowCategory.allCases,
             range: FlowCategory.allCases.map(\.color)
@@ -117,7 +130,7 @@ struct MonthlyFlowRangeVerticalBarChart: View {
                 xStart: .value("Zero", 0),
                 xEnd: .value("Income", flow.income),
                 y: .value("Month", Double(index)),
-                height: 12
+                height: .fixed(barHeight)
             )
             .cornerRadius(0)
             .clipShape(UnevenRoundedRectangle(bottomTrailingRadius: barEndRadius, topTrailingRadius: barEndRadius))
@@ -128,7 +141,7 @@ struct MonthlyFlowRangeVerticalBarChart: View {
                 xStart: .value("Zero", 0),
                 xEnd: .value("Expense", -flow.expense),
                 y: .value("Month", Double(index)),
-                height: 12
+                height: .fixed(barHeight)
             )
             .cornerRadius(0)
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: barEndRadius, bottomLeadingRadius: barEndRadius))
@@ -139,6 +152,54 @@ struct MonthlyFlowRangeVerticalBarChart: View {
 
     /// Corner radius of a bar's outer (away-from-zero) end.
     private let barEndRadius: CGFloat = 4
+
+    /// A cream outline around the hovered row's bars (expense end to income end), so the
+    /// hovered month stays visible even inside a full-opacity selected range. Drawn in a
+    /// `.chartOverlay` rather than as an `.annotation`: annotation `targetSize` reports zero
+    /// for these marks, so the outline would collapse to a dot. Hit testing is off so the
+    /// overlay doesn't swallow hover, taps, or the scroll drag.
+    private func hoverOutline(_ proxy: ChartProxy) -> some View {
+        GeometryReader { geometry in
+            if let rect = hoverOutlineRect(proxy: proxy, geometry: geometry) {
+                RoundedRectangle(cornerRadius: barEndRadius + hoverOutlinePadding)
+                    .stroke(Self.hoverOutlineColor, lineWidth: 2)
+                    .frame(width: rect.width, height: rect.height)
+                    .position(x: rect.midX, y: rect.midY)
+            }
+        }
+        .clipped()
+        .allowsHitTesting(false)
+    }
+
+    /// The hovered row's bar extent in overlay coordinates, padded by `hoverOutlinePadding`.
+    /// `ChartProxy` positions are relative to the full scrollable plot, and the plot frame's
+    /// origin shifts with the scroll offset, so their sum lands on the visible row.
+    private func hoverOutlineRect(proxy: ChartProxy, geometry: GeometryProxy) -> CGRect? {
+        guard let index = hoveredIndex,
+              let plotFrame = proxy.plotFrame,
+              let left = proxy.position(forX: -metrics[index].expense),
+              let right = proxy.position(forX: metrics[index].income),
+              let centerY = proxy.position(forY: Double(index))
+        else { return nil }
+
+        let origin = geometry[plotFrame].origin
+        let barsRect = CGRect(
+            x: origin.x + left,
+            y: origin.y + centerY - barHeight / 2,
+            width: right - left,
+            height: barHeight
+        )
+        return barsRect.insetBy(dx: -hoverOutlinePadding, dy: -hoverOutlinePadding)
+    }
+
+    /// Thickness of each income/expense bar.
+    private let barHeight: CGFloat = 12
+
+    /// Gap between the hovered row's bars and its outline.
+    private let hoverOutlinePadding: CGFloat = 2
+
+    /// Creamy yellow used for the hover outline.
+    private static let hoverOutlineColor = Color(red: 0.98, green: 0.88, blue: 0.55)
 
     @ChartContentBuilder
     private var netLine: some ChartContent {
