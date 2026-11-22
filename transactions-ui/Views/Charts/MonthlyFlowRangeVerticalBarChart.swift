@@ -108,6 +108,8 @@ struct MonthlyFlowRangeVerticalBarChart: View {
 
     /// Explicit `xStart`/`xEnd` spans from zero: with both axes numeric, a plain
     /// `BarMark(x:y:)` is drawn as a vertical column, not a horizontal bar.
+    /// Only each bar's outer end is rounded, so both sit flat against the zero axis
+    /// (`.cornerRadius(0)` drops the default rounding the clip shape can't undo).
     @ChartContentBuilder
     private var barMarks: some ChartContent {
         ForEach(Array(metrics.enumerated()), id: \.offset) { index, flow in
@@ -117,6 +119,8 @@ struct MonthlyFlowRangeVerticalBarChart: View {
                 y: .value("Month", Double(index)),
                 height: 12
             )
+            .cornerRadius(0)
+            .clipShape(UnevenRoundedRectangle(bottomTrailingRadius: barEndRadius, topTrailingRadius: barEndRadius))
             .foregroundStyle(by: .value("Type", FlowCategory.income))
             .opacity(barOpacity(flow.month))
 
@@ -126,10 +130,15 @@ struct MonthlyFlowRangeVerticalBarChart: View {
                 y: .value("Month", Double(index)),
                 height: 12
             )
+            .cornerRadius(0)
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: barEndRadius, bottomLeadingRadius: barEndRadius))
             .foregroundStyle(by: .value("Type", FlowCategory.expenses))
             .opacity(barOpacity(flow.month))
         }
     }
+
+    /// Corner radius of a bar's outer (away-from-zero) end.
+    private let barEndRadius: CGFloat = 4
 
     @ChartContentBuilder
     private var netLine: some ChartContent {
