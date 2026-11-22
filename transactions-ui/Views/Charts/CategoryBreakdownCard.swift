@@ -195,6 +195,9 @@ struct CategoryBreakdownCard: View {
                     legendColumn(column)
                 }
             }
+            // Full viewport height, top-aligned: otherwise a column shorter than
+            // `legendRowsPerColumn` rows is vertically centered in the scroll view.
+            .frame(height: legendViewportHeight, alignment: .top)
             .padding(.bottom, legendScrollBarGutter)
         }
         .frame(height: legendViewportHeight + legendScrollBarGutter)
